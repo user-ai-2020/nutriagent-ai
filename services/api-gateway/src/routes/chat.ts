@@ -160,6 +160,11 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
       sessionId: finalSessionId,
     });
 
+    if (result.intent === "clarify_vision") {
+      // Don't save assistant message or log meal yet, just return the intent to client
+      return res.json(result);
+    }
+
     await prisma.chatHistory.create({
       data: {
         userId: req.user!.userId,
@@ -179,6 +184,58 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
         agentPath: result.agentPath,
         sources: result.sources,
         mealImageId: mealImage?.id,
+      },
+      sourceIp: req.ip,
+    });
+
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+chatRouter.post("/resume", async (req: AuthRequest, res, next) => {
+  try {
+    const { answer, sessionId } = req.body;
+    if (!sessionId || !answer) {
+      return res.status(400).json({ error: "Missing sessionId or answer" });
+    }
+
+    await prisma.chatHistory.create({
+      data: {
+        userId: req.user!.userId,
+        role: "user",
+        content: answer,
+        sessionId: Number(sessionId),
+      },
+    });
+
+    const { resumeOrchestrator } = require("../lib/orchestrator");
+    
+    const result = await resumeOrchestrator(Number(sessionId), answer);
+
+    if (result.intent === "clarify_vision") {
+      return res.json(result);
+    }
+
+    await prisma.chatHistory.create({
+      data: {
+        userId: req.user!.userId,
+        role: "assistant",
+        content: result.reply,
+        mealId: result.mealId,
+        sources: result.sources,
+        sessionId: Number(sessionId),
+      },
+    });
+
+    await writeAuditLog({
+      userId: req.user!.userId,
+      actionType: result.mealId ? AUDIT_ACTIONS.MEAL_CAPTURE : AUDIT_ACTIONS.CHAT_MESSAGE,
+      details: {
+        intent: result.intent,
+        agentPath: result.agentPath,
+        sources: result.sources,
       },
       sourceIp: req.ip,
     });

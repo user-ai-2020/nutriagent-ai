@@ -1,4 +1,4 @@
-import { Annotation, StateGraph, END, START } from "@langchain/langgraph";
+import { Annotation, StateGraph, END, START, interrupt, Command } from "@langchain/langgraph";
 import {
   ChatIntent,
   CITATION_SOURCES,
@@ -329,6 +329,71 @@ async function visionAnalyzeNode(state: typeof OrchestratorState.State) {
   return { visionResult, agentPath: agentPathUpdate, sources: sourcesUpdate };
 }
 
+async function visionClusterCheckNode(state: typeof OrchestratorState.State) {
+  const { rerankedItems } = state.visionResult;
+  if (!rerankedItems || rerankedItems.length === 0) return {};
+
+  const topConfidence = rerankedItems[0].visionConfidence ?? 1.0;
+  const isLowConfidence = topConfidence < 0.40;
+  const hasMultipleItems = rerankedItems.length >= 2;
+
+  if (isLowConfidence || hasMultipleItems) {
+    let conditionMessage = isLowConfidence 
+      ? "I wasn't completely sure what this was." 
+      : "I noticed multiple items in this photo.";
+    
+    // Interrupt and wait for user's clarification
+    const answer = interrupt(`I need some clarification: ${conditionMessage} What time did you eat this? Was it just this item, or something else too?`);
+
+    if (answer && typeof answer === "string") {
+      const candidateNames = rerankedItems.map(i => i.foodType).join(", ");
+      const originalDate = state.request.mealImage?.capturedAt || new Date().toISOString();
+      const systemPrompt = `You are an AI assistant analyzing a user's clarification about a meal photo.
+The original photo was detected to contain the following candidate items: ${candidateNames}.
+The user was asked to clarify what they ate and when.
+The user answered: "${answer}"
+
+Instructions:
+1. Determine which of the candidate items the user actually ate/wants to keep. Return their exact names in 'itemsToKeep' array, or 'all' if they ate everything or didn't specify.
+2. Determine if the user specified a time (e.g., "around 7pm", "yesterday morning"). If so, return it as an ISO8601 string in 'mealDatetime'. Assume the original photo date ${originalDate.split('T')[0]} if only a time is provided. If they didn't specify a time, return null.
+
+Respond ONLY with raw JSON matching this schema exactly (no markdown formatting):
+{ "itemsToKeep": ["item1", "item2"] | "all", "mealDatetime": "YYYY-MM-DDTHH:mm:ssZ" | null }`;
+
+      try {
+        const settings = await getCachedLlmSettings();
+        const llmResponse = await openRouterChat({
+          apiKey: settings.openRouterApiKey,
+          model: "google/gemini-2.5-flash",
+          messages: [{ role: "system", content: systemPrompt }]
+        });
+
+        if (llmResponse) {
+          const parsed = JSON.parse(llmResponse.replace(/```json|```/g, '').trim());
+          
+          let updatedItems = rerankedItems;
+          if (Array.isArray(parsed.itemsToKeep)) {
+            updatedItems = rerankedItems.filter(i => parsed.itemsToKeep.includes(i.foodType));
+            if (updatedItems.length === 0) updatedItems = rerankedItems; // fallback if no match
+          }
+
+          let updatedMealImage = state.request.mealImage;
+          if (parsed.mealDatetime && updatedMealImage) {
+            updatedMealImage = { ...updatedMealImage, capturedAt: parsed.mealDatetime };
+          }
+
+          const newVisionResult = { ...state.visionResult, rerankedItems: updatedItems };
+          return { visionResult: newVisionResult, request: { ...state.request, mealImage: updatedMealImage } };
+        }
+      } catch (err) {
+        console.warn("visionClusterCheckNode: LLM parse failed", err);
+      }
+    }
+  }
+
+  return {};
+}
+
 async function nutritionCalculateNode(state: typeof OrchestratorState.State) {
   async function calc(items: VisionFoodItem[]): Promise<NutritionCalc | null> {
     if (!items.length) return null;
@@ -584,6 +649,7 @@ const workflow = new StateGraph(OrchestratorState)
 
   // Branch 2: Vision
   .addNode("visionAnalyze", visionAnalyzeNode)
+  .addNode("visionClusterCheck", visionClusterCheckNode)
   .addNode("nutritionCalculate", nutritionCalculateNode)
   .addNode("graphdbMeal", graphdbMealNode)
   .addNode("saveMeal", saveMealNode)
@@ -621,8 +687,9 @@ const workflow = new StateGraph(OrchestratorState)
   // Path 2
   .addConditionalEdges("visionAnalyze", (state) => {
     if (state.response) return "finishUserActionLog"; // No food detected
-    return "nutritionCalculate";
+    return "visionClusterCheck";
   })
+  .addEdge("visionClusterCheck", "nutritionCalculate")
   .addEdge("nutritionCalculate", "graphdbMeal")
   .addEdge("graphdbMeal", "saveMeal")
   .addEdge("saveMeal", "finishUserActionLog")
