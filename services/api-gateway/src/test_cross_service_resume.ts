@@ -35,7 +35,7 @@ async function run() {
     body: form as any
   });
 
-  const body1 = await res1.json();
+  const body1 = await res1.json() as any;
   console.log("Response 1:", body1);
 
   if (body1.intent !== "clarify_vision") {

@@ -23,7 +23,7 @@ export async function callOrchestrator(
     throw new Error(`Orchestrator error: ${text}`);
   }
 
-  const result = await res.json();
+  const result = await res.json() as any;
   if (isGraphInterrupted(result)) {
     return { intent: "clarify_vision", question: result.interruptValue };
   }
@@ -54,7 +54,7 @@ export async function resumeOrchestrator(
     throw new Error(`Orchestrator resume error: ${text}`);
   }
 
-  const result = await res.json();
+  const result = await res.json() as any;
   if (isGraphInterrupted(result)) {
     return { intent: "clarify_vision", question: result.interruptValue };
   }
