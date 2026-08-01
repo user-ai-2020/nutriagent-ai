@@ -1,7 +1,7 @@
 import { signToken } from "@nutriagent/shared";
 import fs from "fs";
 
-process.env.JWT_SECRET = "change-me-in-production-use-secret-manager";
+process.env.JWT_SECRET = "f2db8f66d9430680f8c217bd27725c9e6689fdff2a588bc85d61bd46fa81cab2";
 
 async function run() {
   const sessionId = Math.floor(Date.now() / 1000);

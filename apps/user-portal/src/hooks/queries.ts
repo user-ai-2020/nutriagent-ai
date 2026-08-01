@@ -3,7 +3,7 @@ import { api } from "@/lib/api";
 
 // Centralized query keys
 export const queryKeys = {
-  dashboard: (date: string) => ["dashboard", date] as const,
+  dashboard: (date: string, period: string) => ["dashboard", date, period] as const,
   profile: () => ["profile"] as const,
   meals: (params: string) => ["meals", params] as const,
   meal: (id: number | null) => ["meal", id] as const,
@@ -11,10 +11,10 @@ export const queryKeys = {
 
 // --- Queries ---
 
-export function useDashboard(dateKey: string) {
+export function useDashboard(dateKey: string, period: "day" | "week" | "month" = "week") {
   return useQuery({
-    queryKey: queryKeys.dashboard(dateKey),
-    queryFn: () => api<any>(`/api/dashboard?period=week&date=${dateKey}`),
+    queryKey: queryKeys.dashboard(dateKey, period),
+    queryFn: () => api<any>(`/api/dashboard?period=${period}&date=${dateKey}`),
   });
 }
 

@@ -142,7 +142,9 @@ export function classifyIntent(message: string, hasImage: boolean): ChatIntent {
     lower.includes("אכלתי משהו עם") ||
     lower.includes("האם אכלתי") ||
     lower.includes("я ел что-то") ||
-    lower.includes("я ела что-то")
+    lower.includes("я ела что-то") ||
+    lower.includes("between") ||
+    lower.includes("from ")
   ) {
     return "history_query";
   }

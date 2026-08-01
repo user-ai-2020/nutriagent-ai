@@ -65,11 +65,13 @@ export const OrchestratorState = Annotation.Root({
 });
 
 async function classifyIntentNode(state: typeof OrchestratorState.State) {
+  console.log("classifyIntentNode start");
   const intent = classifyIntent(state.request.message, Boolean(state.request.imageBase64));
   return { intent };
 }
 
 async function enforceChatCapNode(state: typeof OrchestratorState.State) {
+  console.log("enforceChatCapNode start");
   if (!state.request.userId) return {};
   
   const sessions = await prisma.chatSession.findMany({
@@ -88,6 +90,7 @@ async function enforceChatCapNode(state: typeof OrchestratorState.State) {
 }
 
 const createUserActionLogNode = async (state: typeof OrchestratorState.State) => {
+  console.log("createUserActionLogNode start");
   const log = await prisma.userActionLog.create({
     data: {
       userId: state.request.userId,
@@ -291,6 +294,7 @@ async function questionCacheSaveNode(state: typeof OrchestratorState.State) {
 // ---------------------------------------------------------------------------
 
 async function visionAnalyzeNode(state: typeof OrchestratorState.State) {
+  console.log("visionAnalyzeNode start");
   const visionResult = await callAgentWithTimeout<VisionAnalyzeResponse>(
     `${VISION_URL}/analyze`,
     {
@@ -329,7 +333,9 @@ async function visionAnalyzeNode(state: typeof OrchestratorState.State) {
   return { visionResult, agentPath: agentPathUpdate, sources: sourcesUpdate };
 }
 
-async function visionClusterCheckNode(state: typeof OrchestratorState.State) {
+export async function visionClusterCheckNode(
+  state: typeof OrchestratorState.State
+) {
   const { rerankedItems } = state.visionResult;
   if (!rerankedItems || rerankedItems.length === 0) return {};
 

@@ -74,6 +74,7 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [sessionId, setSessionId] = useState<number | undefined>(undefined);
+  const [pendingClarification, setPendingClarification] = useState<string | null>(null);
 
   useEffect(() => {
     if (!file) {
@@ -152,7 +153,13 @@ export default function ChatPage() {
         };
       };
 
-      if (file) {
+      if (pendingClarification) {
+        setPendingClarification(null);
+        data = await apiChat("/api/chat/resume", { 
+          method: "POST", 
+          body: JSON.stringify({ answer: message, sessionId }) 
+        });
+      } else if (file) {
         const resizedBlob = await resizeImage(file);
         const form = new FormData();
         form.append("message", message);
@@ -185,7 +192,11 @@ export default function ChatPage() {
       }
 
       const next: Msg[] = [];
-      if (data.itemsDetected === false && data.multiModelMealAnalysis) {
+      
+      if ((data as any).intent === "clarify_vision") {
+        setPendingClarification((data as any).question);
+        next.push({ kind: "text", from: "agent", text: (data as any).question });
+      } else if (data.itemsDetected === false && data.multiModelMealAnalysis) {
         next.push({
           kind: "multiModel",
           text: data.reply,

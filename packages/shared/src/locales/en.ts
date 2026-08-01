@@ -200,6 +200,9 @@ export const enTranslations = {
     adviceBudgetUsedThatDay: "That day's budget was fully used.",
     previousWeek: "Previous week",
     nextWeek: "Next week",
+    day: "Day",
+    week: "Week",
+    month: "Month",
   },
   summary: {
     title: "Summary & Foods",

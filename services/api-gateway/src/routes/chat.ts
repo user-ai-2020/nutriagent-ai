@@ -148,6 +148,7 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
 
     const profileData = toUserProfileData(profile);
 
+    console.log("Calling callOrchestrator for message:", body.message);
     const result = await callOrchestrator({
       userId: req.user!.userId,
       message: body.message,
@@ -190,6 +191,7 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
 
     res.json(result);
   } catch (err) {
+    console.error("Caught error in POST /message:", err);
     next(err);
   }
 });

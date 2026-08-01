@@ -125,6 +125,7 @@ export function DashboardClient() {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
   const [weekStart, setWeekStart] = useState(() => startOfWeekSunday(new Date()));
+  const [period, setPeriod] = useState<"day" | "week" | "month">("week");
 
   const today = useMemo(() => startOfDay(new Date()), []);
   const currentWeekStart = useMemo(() => startOfWeekSunday(today), [today]);
@@ -134,7 +135,7 @@ export function DashboardClient() {
   const canGoNext = weekStart.getTime() < currentWeekStart.getTime();
   const onCurrentWeek = weekStart.getTime() === currentWeekStart.getTime();
 
-  const { data, isFetching: refreshing } = useDashboard(selectedKey);
+  const { data, isFetching: refreshing } = useDashboard(selectedKey, period);
 
   const weekDays = useMemo(
     () =>
@@ -207,6 +208,36 @@ export function DashboardClient() {
 
   return (
     <div style={{ width: "100%", opacity: refreshing ? 0.72 : 1, transition: "opacity 0.15s" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: "var(--space-4)",
+        }}
+      >
+        <div style={{ display: "flex", gap: "var(--space-2)", background: "var(--color-surface)", padding: 4, borderRadius: "var(--radius-md)", border: "1px solid var(--color-divider)" }}>
+          {(["day", "week", "month"] as const).map(p => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              style={{
+                border: "none",
+                background: period === p ? "var(--color-accent-100)" : "transparent",
+                color: period === p ? "var(--color-accent-700)" : "var(--color-text)",
+                padding: "4px 12px",
+                borderRadius: "var(--radius-sm)",
+                fontSize: 12,
+                fontWeight: period === p ? 600 : 400,
+                cursor: "pointer",
+              }}
+            >
+              {p === "day" ? t("dashboard.day") : p === "week" ? t("dashboard.week") : t("dashboard.month")}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div
         style={{
           display: "flex",

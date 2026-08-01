@@ -196,6 +196,9 @@ export const heTranslations = {
     adviceBudgetUsedThatDay: "התקציב של אותו יום נוצל במלואו.",
     previousWeek: "שבוע קודם",
     nextWeek: "שבוע הבא",
+    day: "יום",
+    week: "שבוע",
+    month: "חודש",
   },
   summary: {
     title: "סיכום ומאכלים",
