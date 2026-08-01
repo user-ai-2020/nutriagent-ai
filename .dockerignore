@@ -1,0 +1,44 @@
+# Root build context exclusions — all 9 Dockerfiles build from repo root.
+# Env vars are supplied at `docker compose up` time; never bake .env into images.
+
+# Dependencies (reinstalled inside the build stage)
+node_modules
+**/node_modules
+
+# Env files — NEVER let these into a build context or image layer
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# Build artifacts (rebuilt inside the container)
+dist
+.next
+build
+**/dist
+**/.next
+**/build
+
+# Local dev artifacts (must not land in images as root-owned dirs)
+storage/meal-images
+services/api-gateway/storage
+uploads
+services/api-gateway/uploads
+*.log
+.DS_Store
+
+# Docs / non-runtime content (not needed inside any image)
+docs
+*.md
+!README.md
+
+# Test files (excluded from build context, not just the final stage)
+**/*.test.ts
+**/*.test.tsx
+
+# IDE
+.vscode
+.idea

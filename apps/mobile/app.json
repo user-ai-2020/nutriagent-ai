@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "NutriAgent AI",
+    "slug": "nutriagent-ai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "nutriagent",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#2D6A4F"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ai.nutriagent.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#2D6A4F"
+      },
+      "package": "ai.nutriagent.app"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow NutriAgent to use your camera to scan meals."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow NutriAgent to access photos for meal analysis."
+        }
+      ]
+    ]
+  }
+}

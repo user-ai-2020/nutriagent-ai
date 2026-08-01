@@ -1,0 +1,36 @@
+{
+  "name": "nutriagent-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NutriAgent AI - Nutrition tracking with multi-agent AI",
+  "scripts": {
+    "dev": "pnpm --parallel -r run dev",
+    "dev:api": "pnpm --filter @nutriagent/api-gateway dev",
+    "dev:admin": "pnpm --filter @nutriagent/admin-portal dev",
+    "dev:mobile": "pnpm --filter @nutriagent/mobile start",
+    "build": "pnpm -r run build",
+    "db:generate": "pnpm --filter @nutriagent/db generate",
+    "db:migrate": "pnpm --filter @nutriagent/db migrate",
+    "db:seed": "pnpm --filter @nutriagent/db seed",
+    "db:seed:demo": "pnpm --filter @nutriagent/db seed:demo",
+    "db:backfill:daily-steps": "pnpm --filter @nutriagent/db backfill:daily-steps",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "lint:i18n": "corepack pnpm --filter @nutriagent/shared lint:i18n",
+    "check:i18n": "corepack pnpm --filter @nutriagent/shared build",
+    "test:i18n": "corepack pnpm --filter @nutriagent/shared build && corepack pnpm --filter @nutriagent/shared test && corepack pnpm --filter @nutriagent/user-portal test && corepack pnpm --filter @nutriagent/admin-portal test && corepack pnpm --filter @nutriagent/mobile test",
+    "verify:ssr-rtl": "node scripts/verify-portal-ssr-rtl.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "esbuild",
+      "prisma",
+      "sharp"
+    ]
+  }
+}

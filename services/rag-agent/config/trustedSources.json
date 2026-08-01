@@ -1,0 +1,39 @@
+{
+  "domains": [
+    {
+      "domain": "pubmed.ncbi.nlm.nih.gov",
+      "name": "PubMed",
+      "searchType": "pubmed_eutils"
+    },
+    {
+      "domain": "www.ncbi.nlm.nih.gov",
+      "name": "NCBI",
+      "searchType": "site"
+    },
+    {
+      "domain": "www.nih.gov",
+      "name": "NIH",
+      "searchType": "site"
+    },
+    {
+      "domain": "www.cdc.gov",
+      "name": "CDC",
+      "searchType": "site"
+    },
+    {
+      "domain": "www.who.int",
+      "name": "WHO",
+      "searchType": "site"
+    },
+    {
+      "domain": "www.nutrition.gov",
+      "name": "Nutrition.gov",
+      "searchType": "site"
+    },
+    {
+      "domain": "www.health.gov.il",
+      "name": "Israel Ministry of Health",
+      "searchType": "site"
+    }
+  ]
+}

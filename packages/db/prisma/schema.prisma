@@ -1,0 +1,241 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+model Role {
+  roleId    Int      @id @default(autoincrement()) @map("role_id")
+  roleName  String   @unique @map("role_name")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  users     User[]
+
+  @@map("roles")
+}
+
+model User {
+  userId        Int           @id @default(autoincrement()) @map("user_id")
+  name          String
+  email         String        @unique
+  passwordHash  String        @map("password_hash")
+  roleId        Int           @map("role_id")
+  accountStatus String        @default("active") @map("account_status")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  role          Role          @relation(fields: [roleId], references: [roleId])
+  profile       UserProfile?
+  meals         Meal[]
+  mealImages    MealImage[]
+  dailySteps    DailySteps[]
+  chatHistory   ChatHistory[]
+  auditLogs     AuditLog[]
+
+  @@index([email])
+  @@index([roleId])
+  @@map("users")
+}
+
+model UserProfile {
+  profileId          Int      @id @default(autoincrement()) @map("profile_id")
+  userId             Int      @unique @map("user_id")
+  dietGoals          Json     @default("{}") @map("diet_goals")
+  healthRestrictions Json     @default("[]") @map("health_restrictions")
+  allergies          Json     @default("[]")
+  dietType           String?  @map("diet_type")
+  weight             Float?
+  height             Float?
+  age                Int?
+  dailyStepsGoal     Int      @default(8000) @map("daily_steps_goal")
+  todaySteps         Int      @default(0) @map("today_steps")
+  preferredLanguage  String?  @map("preferred_language")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  user               User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model DailySteps {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  date      DateTime @db.Date @map("date")
+  steps     Int
+  source    String   @default("home")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("daily_steps")
+}
+
+model Meal {
+  mealId       Int        @id @default(autoincrement()) @map("meal_id")
+  userId       Int        @map("user_id")
+  mealDatetime DateTime   @map("meal_datetime")
+  mealType     String     @default("snack") @map("meal_type") // breakfast | lunch | dinner | snack
+  source       String     @default("home")
+  imageUrl     String?    @map("image_url")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  user         User       @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  items        MealItem[]
+  images       MealImage[]
+  chatMessages ChatHistory[]
+
+  @@index([userId, mealDatetime])
+  @@map("meals")
+}
+
+model MealImage {
+  id                 String    @id @default(cuid())
+  mealId             Int       @map("meal_id")
+  userId             Int       @map("user_id")
+  storageKey         String    @map("storage_key")
+  width              Int
+  height             Int
+  fileSizeBytes      Int       @map("file_size_bytes")
+  contentHash        String    @map("content_hash") // indexed only — NOT unique; storage keys are per-user
+  capturedAt         DateTime  @map("captured_at")
+  recognizedAt       DateTime? @map("recognized_at")
+  visionModelVersion String?   @map("vision_model_version")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  meal               Meal      @relation(fields: [mealId], references: [mealId], onDelete: Cascade)
+  user               User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([mealId])
+  @@index([contentHash])
+  @@index([userId, contentHash])
+  @@map("meal_images")
+}
+
+model MealItem {
+  itemId             Int             @id @default(autoincrement()) @map("item_id")
+  mealId             Int             @map("meal_id")
+  foodType           String          @map("food_type")
+  estimatedQuantity  String          @map("estimated_quantity")
+  visionConfidence   Float?          @map("vision_confidence")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+  meal               Meal            @relation(fields: [mealId], references: [mealId], onDelete: Cascade)
+  nutritionValues    NutritionValue?
+
+  @@map("meal_items")
+}
+
+model NutritionValue {
+  valueId   Int      @id @default(autoincrement()) @map("value_id")
+  itemId    Int      @unique @map("item_id")
+  calories  Float    @default(0)
+  protein   Float    @default(0)
+  fat       Float    @default(0)
+  carbs     Float    @default(0)
+  sugar     Float    @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  item      MealItem @relation(fields: [itemId], references: [itemId], onDelete: Cascade)
+
+  @@map("nutrition_values")
+}
+
+model ChatHistory {
+  messageId Int      @id @default(autoincrement()) @map("message_id")
+  userId    Int      @map("user_id")
+  mealId    Int?     @map("meal_id")
+  role      String   @default("user")
+  content   String
+  sources   Json?
+  timestamp DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  meal      Meal?    @relation(fields: [mealId], references: [mealId], onDelete: SetNull)
+
+  @@index([userId, timestamp])
+  @@map("chat_history")
+}
+
+model AuditLog {
+  logId      Int      @id @default(autoincrement()) @map("log_id")
+  userId     Int?     @map("user_id")
+  actionType String   @map("action_type")
+  details    Json?
+  sourceIp   String?  @map("source_ip")
+  timestamp  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [userId], onDelete: SetNull)
+
+  @@index([timestamp])
+  @@index([userId])
+  @@index([actionType])
+  @@map("audit_logs")
+}
+
+model KnowledgeDocument {
+  id        Int                    @id @default(autoincrement())
+  title     String
+  content   String
+  category  String                 @default("general")
+  embedding Unsupported("vector")?
+  createdAt DateTime               @default(now()) @map("created_at")
+  updatedAt DateTime               @updatedAt @map("updated_at")
+
+  @@map("knowledge_documents")
+}
+
+/// Singleton row (id = 1) — Admin LLM / OpenRouter configuration
+model LlmSettings {
+  id               Int      @id @default(1)
+  openRouterApiKey String?  @map("open_router_api_key")
+  chatModel        String   @default("openai/gpt-4o-mini") @map("chat_model")
+  visionModel1     String   @default("openai/gpt-4o") @map("vision_model_1")
+  visionModel2     String   @default("google/gemini-flash-1.5") @map("vision_model_2")
+  routerModel      String   @default("openai/gpt-4o-mini") @map("router_model")
+  ragModel         String   @default("openai/gpt-4o-mini") @map("rag_model")
+  text2sqlModel    String   @default("openai/gpt-4o-mini") @map("text2sql_model")
+  graphdbModel     String   @default("openai/gpt-4o-mini") @map("graphdb_model")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("llm_settings")
+}
+
+/// Ingested web/PDF knowledge base document (RAG pipeline — Task 4)
+model RagDocument {
+  id            String     @id @default(cuid())
+  sourceUrl     String     @map("source_url")
+  sourceDomain  String     @map("source_domain")
+  title         String
+  publishedDate DateTime?  @map("published_date")
+  fetchedAt     DateTime   @default(now()) @map("fetched_at")
+  summary       String?
+  rawTextHash   String     @unique @map("raw_text_hash")
+  status        String     @default("pending") // pending | ready | failed
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  chunks        RagChunk[]
+
+  @@index([sourceDomain])
+  @@index([status])
+  @@map("rag_documents")
+}
+
+/// Searchable chunk with pgvector embedding + tsvector full-text (RAG pipeline — Task 4)
+model RagChunk {
+  id         String                 @id @default(cuid())
+  documentId String                 @map("document_id")
+  content    String
+  embedding  Unsupported("vector(1024)")
+  tsv        Unsupported("tsvector")?
+  chunkIndex Int                    @map("chunk_index")
+  createdAt  DateTime               @default(now()) @map("created_at")
+  document   RagDocument            @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("rag_chunks")
+}

@@ -1,0 +1,51 @@
+{
+  "name": "@nutriagent/shared",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./authCookie": {
+      "types": "./dist/authCookie.d.ts",
+      "default": "./dist/authCookie.js"
+    },
+    "./citation-sources": {
+      "types": "./dist/citation-sources.d.ts",
+      "default": "./dist/citation-sources.js"
+    },
+    "./locales": {
+      "types": "./dist/locales/index.d.ts",
+      "default": "./dist/locales/index.js"
+    },
+    "./locales/testI18n": {
+      "types": "./dist/locales/testI18n.d.ts",
+      "default": "./dist/locales/testI18n.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && node --import tsx src/locales/lintUsageCli.ts",
+    "dev": "tsc --watch",
+    "lint:i18n": "node --import tsx src/locales/lintUsageCli.ts",
+    "test": "node --import tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "^7.15.2",
+    "@paralleldrive/cuid2": "^2.2.2",
+    "franc-min": "^6.2.0",
+    "i18next": "^24.2.3",
+    "jsonwebtoken": "^9.0.2",
+    "react-i18next": "^15.4.1",
+    "sharp": "^0.33.5",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

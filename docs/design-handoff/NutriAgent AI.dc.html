@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<template id="__bundler_thumbnail" data-bg-color="#efe9de">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#efe9de"/>
+    <circle cx="600" cy="400" r="120" fill="none" stroke="#3fa15c" stroke-width="22"/>
+    <circle cx="600" cy="230" r="60" fill="none" stroke="#6b6b6b" stroke-width="14"/>
+    <circle cx="430" cy="330" r="66" fill="none" stroke="#4a90d9" stroke-width="14"/>
+    <circle cx="770" cy="330" r="62" fill="none" stroke="#3fa15c" stroke-width="14"/>
+    <circle cx="430" cy="500" r="66" fill="none" stroke="#d6437e" stroke-width="14"/>
+    <circle cx="770" cy="500" r="66" fill="none" stroke="#d98a3d" stroke-width="14"/>
+    <circle cx="600" cy="580" r="60" fill="none" stroke="#2f9d95" stroke-width="14"/>
+  </svg>
+</template>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/broadsheet-8220703d-fefe-4a8f-8280-508f1f57738f/styles.css">
+<script src="_ds/broadsheet-8220703d-fefe-4a8f-8280-508f1f57738f/_ds_bundle.js"></script>
+<script src="./image-slot.js"></script>
+<style>
+body{margin:0}
+a{color:var(--color-accent);text-decoration:none}
+a:hover{color:var(--color-accent-700)}
+input[type=number]::-webkit-inner-spin-button{opacity:0.6}
+@keyframes na-dot{0%,80%,100%{opacity:.2;transform:translateY(0)}40%{opacity:1;transform:translateY(-2px)}}
+@keyframes na-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+/* ── dark + green themes: override Broadsheet tokens so the whole app recolors ── */
+.na-app{--radius-md:12px;--radius-lg:20px}
+.na-app.theme-white{
+  --color-bg:#f6f5f3;--color-surface:#ffffff;--color-divider:#e7e4df;--color-text:#2a2420;
+  --color-neutral-100:#f5f3f0;--color-neutral-200:#eae7e2;--color-neutral-300:#ddd8d0;--color-neutral-400:#b3aca1;--color-neutral-500:#8a8378;--color-neutral-800:#3a322b;--color-neutral-900:#000;
+  --color-accent:#2e9e5b;--color-accent-100:#e1f2e7;--color-accent-200:#c9e8d4;--color-accent-600:#26884d;--color-accent-700:#1f7040;--color-accent-800:#184f2f;
+  --color-accent-2:#d6006c;--color-accent-2-100:#fbe1ec;--color-accent-2-700:#a3004f;--color-accent-2-800:#7a003b;
+  --color-process-yellow:#e0a324;
+  --shadow-sm:0 1px 2px rgba(30,25,20,.06);--shadow-md:0 6px 18px rgba(30,25,20,.09);--shadow-lg:0 20px 44px rgba(30,25,20,.14);
+}
+.na-app.theme-light{
+  --color-bg:#f3ebe0;--color-surface:#fbf6ee;--color-divider:#e6d9c8;--color-text:#2a2420;
+  --color-neutral-100:#efe4d5;--color-neutral-200:#e6d9c8;--color-neutral-300:#d8c7b0;--color-neutral-400:#b3a08a;--color-neutral-500:#8a7a68;--color-neutral-800:#3a322b;--color-neutral-900:#000;
+  --color-accent:#2e9e5b;--color-accent-100:#e1f2e7;--color-accent-200:#c9e8d4;--color-accent-600:#26884d;--color-accent-700:#1f7040;--color-accent-800:#184f2f;
+  --color-accent-2:#d6006c;--color-accent-2-100:#fbe1ec;--color-accent-2-700:#a3004f;--color-accent-2-800:#7a003b;
+  --color-process-yellow:#e0a324;
+  --shadow-sm:0 1px 2px rgba(60,40,20,.08);--shadow-md:0 6px 18px rgba(60,40,20,.12);--shadow-lg:0 20px 44px rgba(60,40,20,.18);
+}
+.na-app.theme-midnight{
+  --color-bg:#101011;--color-surface:#1b1c1d;--color-divider:#2b2d2e;--color-text:#eaebe8;
+  --color-neutral-100:#232526;--color-neutral-200:#2b2d2e;--color-neutral-300:#3a3d3e;--color-neutral-400:#565a5b;--color-neutral-500:#8b918c;--color-neutral-800:#c9cdc8;--color-neutral-900:#000;
+  --color-accent:#2fb865;--color-accent-100:#16301f;--color-accent-200:#1c3d28;--color-accent-600:#38c771;--color-accent-700:#6fdc9d;--color-accent-800:#a7ecc4;
+  --color-accent-2:#e0744c;--color-accent-2-100:#33201a;--color-accent-2-700:#f0a98f;--color-accent-2-800:#f6c6b3;
+  --color-process-yellow:#e6c24a;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.5);--shadow-md:0 6px 18px rgba(0,0,0,.5);--shadow-lg:0 20px 44px rgba(0,0,0,.6);
+}
+.na-app.theme-forest{
+  --color-bg:#071009;--color-surface:#0f2015;--color-divider:#1c3524;--color-text:#e6efe8;
+  --color-neutral-100:#13291b;--color-neutral-200:#1c3524;--color-neutral-300:#254432;--color-neutral-400:#3c6249;--color-neutral-500:#6f9a80;--color-neutral-800:#bcd6c6;--color-neutral-900:#000;
+  --color-accent:#3ddc84;--color-accent-100:#102a1a;--color-accent-200:#153726;--color-accent-600:#49e58e;--color-accent-700:#8ff0b8;--color-accent-800:#b7f6d2;
+  --color-accent-2:#e6b143;--color-accent-2-100:#2c2411;--color-accent-2-700:#f2d488;--color-accent-2-800:#f7e4b3;
+  --color-process-yellow:#e6c24a;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.5);--shadow-md:0 6px 18px rgba(0,0,0,.55);--shadow-lg:0 20px 44px rgba(0,0,0,.65);
+}
+.na-app.theme-charcoal{
+  --color-bg:#141416;--color-surface:#1f1f22;--color-divider:#2e2e32;--color-text:#ececeb;
+  --color-neutral-100:#26262a;--color-neutral-200:#2e2e32;--color-neutral-300:#3c3c41;--color-neutral-400:#57575c;--color-neutral-500:#8b8f8c;--color-neutral-800:#cbcbc9;--color-neutral-900:#000;
+  --color-accent:#b6ff3d;--color-accent-100:#242c14;--color-accent-200:#2f3a1a;--color-accent-600:#c2ff5c;--color-accent-700:#d6ff8f;--color-accent-800:#e6ffbb;
+  --color-accent-2:#3ddc84;--color-accent-2-100:#10281a;--color-accent-2-700:#8ff0b8;--color-accent-2-800:#b7f6d2;
+  --color-process-yellow:#e6c24a;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.5);--shadow-md:0 6px 18px rgba(0,0,0,.5);--shadow-lg:0 20px 44px rgba(0,0,0,.6);
+}
+</style>
+</helmet>
+<div class="na-app {{ themeClass }}" style="min-height:100vh;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);display:flex;flex-direction:column;align-items:center">
+
+<sc-if value="{{ isApp }}" hint-placeholder-val="{{ false }}">
+<div style="width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);padding:var(--space-2) var(--space-4);background:var(--color-surface);border-bottom:1px solid var(--color-divider);position:sticky;top:0;z-index:20;flex-wrap:wrap">
+  <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 55%, transparent)">NutriAgent AI · Prototype</span>
+  <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap">
+    <div class="seg">
+      <label class="seg-opt"><input type="radio" name="pv-theme" checked="{{ themeWhite }}" onChange="{{ setThemeWhite }}"/>White</label>
+      <label class="seg-opt"><input type="radio" name="pv-theme" checked="{{ themeLight }}" onChange="{{ setThemeLight }}"/>Off-white</label>
+      <label class="seg-opt"><input type="radio" name="pv-theme" checked="{{ themeMidnight }}" onChange="{{ setThemeMidnight }}"/>Midnight</label>
+    </div>
+    <div class="seg">
+      <label class="seg-opt"><input type="radio" name="pv-portal" checked="{{ isPortalUser }}" onChange="{{ setPortalUser }}"/>User app</label>
+      <label class="seg-opt"><input type="radio" name="pv-portal" checked="{{ isPortalAdmin }}" onChange="{{ setPortalAdmin }}"/>Admin portal</label>
+    </div>
+    <div class="seg">
+      <label class="seg-opt"><input type="radio" name="pv-view" checked="{{ isDesktop }}" onChange="{{ setViewDesktop }}"/>Desktop</label>
+      <label class="seg-opt"><input type="radio" name="pv-view" checked="{{ isMobile }}" onChange="{{ setViewMobile }}"/>Mobile</label>
+    </div>
+    <button type="button" class="btn btn-ghost" onClick="{{ logout }}">Log out</button>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+<div style="width:100%;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--space-8) var(--space-4)">
+  <div style="text-align:center;margin-bottom:var(--space-6)">
+    <h1 style="font-size:30px;margin-bottom:6px">NutriAgent AI</h1>
+    <p style="font-size:14px;opacity:0.65;margin:0">Photograph a meal. Get the nutrition. Ask anything.</p>
+  </div>
+  <form class="card elev-md" style="width:min(360px,90vw);padding:var(--space-4)" onSubmit="{{ handleLoginSubmit }}">
+    <div class="card-kicker">Sign in</div>
+    <div class="field"><label for="li-user">Username</label><input class="input" id="li-user" value="{{ loginUser }}" onChange="{{ setLoginUserInput }}" placeholder="maya.cohen"/></div>
+    <div class="field"><label for="li-pass">Password</label><input class="input" id="li-pass" type="password" value="{{ loginPass }}" onChange="{{ setLoginPassInput }}" placeholder="••••••••"/></div>
+    <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+    <p class="note" style="font-size:11.5px;opacity:0.55;margin:var(--space-2) 0 0">Demo credentials — any username and password will do. MFA arrives in a later release.</p>
+  </form>
+</div>
+</sc-if>
+
+<sc-if value="{{ isOnboarding }}" hint-placeholder-val="{{ false }}">
+<div style="width:100%;flex:1;display:flex;flex-direction:column;align-items:center;padding:var(--space-8) var(--space-4)">
+  <div style="width:min(480px,92vw)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:var(--space-1)">
+      <h2 style="font-size:22px;margin:0">Set up your profile</h2>
+      <span style="font-size:12px;opacity:0.55">Step {{ obStepNum }} of 3</span>
+    </div>
+    <div style="height:2px;background:var(--color-divider);border-radius:2px;margin-bottom:var(--space-6);overflow:hidden">
+      <div style="height:100%;background:var(--color-accent);width:{{ obProgressPct }}"></div>
+    </div>
+
+    <sc-if value="{{ obStep0 }}" hint-placeholder-val="{{ true }}">
+      <h3 style="font-size:16px;margin-bottom:var(--space-3)">Daily diet goals</h3>
+      <div class="field"><label for="ob-cal">Calorie goal (kcal/day)</label><input class="input" id="ob-cal" type="number" value="{{ obGoalCalories }}" onChange="{{ setGoalCaloriesInput }}"/></div>
+      <div class="field"><label for="ob-pro">Protein goal (g/day)</label><input class="input" id="ob-pro" type="number" value="{{ obGoalProtein }}" onChange="{{ setGoalProteinInput }}"/></div>
+    </sc-if>
+    <sc-if value="{{ obStep1 }}" hint-placeholder-val="{{ false }}">
+      <h3 style="font-size:16px;margin-bottom:var(--space-1)">Health restrictions &amp; allergies</h3>
+      <p class="note" style="font-size:12.5px;opacity:0.6;margin:0 0 var(--space-3)">Tap any that apply — the agent filters recommendations against these.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:var(--space-2)">
+        <sc-if value="{{ obGluten }}" hint-placeholder-val="{{ false }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-accent);background:var(--color-accent-100);color:var(--color-accent-700);font-size:13px;white-space:nowrap" onClick="{{ toggleGluten }}">Gluten-free ✓</span></sc-if>
+        <sc-if value="{{ obGlutenOff }}" hint-placeholder-val="{{ true }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-divider);background:transparent;color:var(--color-text);font-size:13px;white-space:nowrap" onClick="{{ toggleGluten }}">Gluten-free</span></sc-if>
+        <sc-if value="{{ obNuts }}" hint-placeholder-val="{{ true }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-accent);background:var(--color-accent-100);color:var(--color-accent-700);font-size:13px;white-space:nowrap" onClick="{{ toggleNuts }}">Nut allergy ✓</span></sc-if>
+        <sc-if value="{{ obNutsOff }}" hint-placeholder-val="{{ false }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-divider);background:transparent;color:var(--color-text);font-size:13px;white-space:nowrap" onClick="{{ toggleNuts }}">Nut allergy</span></sc-if>
+        <sc-if value="{{ obDairy }}" hint-placeholder-val="{{ false }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-accent);background:var(--color-accent-100);color:var(--color-accent-700);font-size:13px;white-space:nowrap" onClick="{{ toggleDairy }}">Dairy-free ✓</span></sc-if>
+        <sc-if value="{{ obDairyOff }}" hint-placeholder-val="{{ true }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-divider);background:transparent;color:var(--color-text);font-size:13px;white-space:nowrap" onClick="{{ toggleDairy }}">Dairy-free</span></sc-if>
+        <sc-if value="{{ obLowSodium }}" hint-placeholder-val="{{ false }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-accent);background:var(--color-accent-100);color:var(--color-accent-700);font-size:13px;white-space:nowrap" onClick="{{ toggleLowSodium }}">Low-sodium ✓</span></sc-if>
+        <sc-if value="{{ obLowSodiumOff }}" hint-placeholder-val="{{ true }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-divider);background:transparent;color:var(--color-text);font-size:13px;white-space:nowrap" onClick="{{ toggleLowSodium }}">Low-sodium</span></sc-if>
+      </div>
+    </sc-if>
+    <sc-if value="{{ obStep2 }}" hint-placeholder-val="{{ false }}">
+      <h3 style="font-size:16px;margin-bottom:var(--space-3)">Diet type</h3>
+      <div class="stack" style="display:grid;gap:var(--space-1)">
+        <label class="radio"><input type="radio" name="ob-diet" checked="{{ dietBalanced }}" onChange="{{ setDietBalanced }}"/><span class="dot"></span>Balanced</label>
+        <label class="radio"><input type="radio" name="ob-diet" checked="{{ dietVegetarian }}" onChange="{{ setDietVegetarian }}"/><span class="dot"></span>Vegetarian</label>
+        <label class="radio"><input type="radio" name="ob-diet" checked="{{ dietKeto }}" onChange="{{ setDietKeto }}"/><span class="dot"></span>Ketogenic</label>
+        <label class="radio"><input type="radio" name="ob-diet" checked="{{ dietLowCarb }}" onChange="{{ setDietLowCarb }}"/><span class="dot"></span>Low-carb</label>
+      </div>
+    </sc-if>
+
+    <div style="display:flex;justify-content:space-between;margin-top:var(--space-6)">
+      <sc-if value="{{ obStep0 }}" hint-placeholder-val="{{ true }}"><span></span></sc-if>
+      <sc-if value="{{ obNotStep0 }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-secondary" onClick="{{ obBack }}">Back</button></sc-if>
+      <sc-if value="{{ obNotStep2 }}" hint-placeholder-val="{{ true }}"><button type="button" class="btn btn-primary" onClick="{{ obNext }}">Continue</button></sc-if>
+      <sc-if value="{{ obStep2 }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-primary" onClick="{{ obFinish }}">Finish setup</button></sc-if>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isApp }}" hint-placeholder-val="{{ false }}">
+<div style="width:100%;flex:1;display:flex;justify-content:center;padding:{{ frameOuterPadding }};box-sizing:border-box">
+<div style="width:{{ frameWidth }};max-width:100%;display:flex;{{ frameFlexDir }};background:var(--color-bg);border:{{ frameBorder }};border-radius:{{ frameRadius }};box-shadow:{{ frameShadow }};overflow:hidden;height:{{ frameHeight }}">
+
+  <sc-if value="{{ isPortalUser }}" hint-placeholder-val="{{ true }}">
+    <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+      <div style="width:220px;flex:none;background:var(--color-surface);padding:var(--space-4) var(--space-2);display:flex;flex-direction:column;gap:2px;border-right:1px solid var(--color-divider)">
+        <div style="font-family:var(--font-heading);font-weight:var(--font-heading-weight);font-size:17px;padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3)">NutriAgent</div>
+        <div onClick="{{ setTabChat }}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-md);cursor:pointer;color:{{ navColorChat }};background:{{ navBgChat }}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-4 4V5z"/></svg><span style="font-size:14px">Chat</span></div>
+        <div onClick="{{ setTabDashboard }}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-md);cursor:pointer;color:{{ navColorDashboard }};background:{{ navBgDashboard }}"><svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="10" width="3.4" height="10"/><rect x="10.3" y="5" width="3.4" height="15"/><rect x="16.6" y="2" width="3.4" height="18"/></svg><span style="font-size:14px">Dashboard</span></div>
+        <div onClick="{{ setTabSummary }}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-md);cursor:pointer;color:{{ navColorSummary }};background:{{ navBgSummary }}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h2M4 12h2M4 18h2M9 6h11M9 12h11M9 18h11"/></svg><span style="font-size:14px">Summary &amp; Foods</span></div>
+        <div onClick="{{ setTabMealAnalysis }}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-md);cursor:pointer;color:{{ navColorMealAnalysis }};background:{{ navBgMealAnalysis }}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6"/><line x1="20" y1="20" x2="15.5" y2="15.5"/></svg><span style="font-size:14px">Meal Analysis</span></div>
+        <div onClick="{{ setTabNutrients }}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-md);cursor:pointer;color:{{ navColorNutrients }};background:{{ navBgNutrients }}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21c9 0 14-5 14-14 0-1-1-2-2-2C8 5 3 10 3 19c0 1 1 2 2 2z"/></svg><span style="font-size:14px">Calories &amp; Nutrients</span></div>
+        <div onClick="{{ setTabSettings }}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-md);cursor:pointer;color:{{ navColorSettings }};background:{{ navBgSettings }}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span style="font-size:14px">Settings</span></div>
+      </div>
+    </sc-if>
+
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div style="flex:1;min-height:0;overflow-y:auto;padding:var(--space-5) var(--space-5) var(--space-8)">
+
+        <sc-if value="{{ tabChat }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;height:100%;min-height:520px">
+            <div style="margin-bottom:var(--space-3);padding-left:var(--space-4)">
+              <h2 style="font-size:22px;margin:0 0 2px">Chat</h2>
+              <p style="font-size:13px;opacity:0.6;margin:0">Snap a meal or ask a question — NutriAgent reasons over your profile.</p>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:var(--space-3);overflow-y:auto;padding-right:2px">
+              <sc-for list="{{ messages }}" as="msg" hint-placeholder-count="2">
+                <div style="display:flex;{{ msg.rowAlign }};animation:na-in .25s ease both">
+                  <sc-if value="{{ msg.isUserText }}" hint-placeholder-val="{{ false }}"><div style="max-width:78%;background:var(--color-accent);color:var(--color-bg);padding:10px 14px;border-radius:var(--radius-lg);font-size:14px;line-height:1.5">{{ msg.text }}</div></sc-if>
+                  <sc-if value="{{ msg.isUserImage }}" hint-placeholder-val="{{ false }}"><div style="max-width:220px;width:70%"><image-slot id="{{ msg.slotId }}" shape="rounded" radius="10" placeholder="Meal photo"></image-slot></div></sc-if>
+                  <sc-if value="{{ msg.isAgentText }}" hint-placeholder-val="{{ true }}"><div style="max-width:82%;background:var(--color-surface);padding:10px 14px;border-radius:var(--radius-lg);font-size:14px;line-height:1.55">{{ msg.text }}</div></sc-if>
+                  <sc-if value="{{ msg.isTyping }}" hint-placeholder-val="{{ false }}"><div style="background:var(--color-surface);padding:10px 16px;border-radius:var(--radius-lg);display:flex;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:var(--color-accent);display:inline-block;animation:na-dot 1.1s ease infinite"></span><span style="width:6px;height:6px;border-radius:50%;background:var(--color-accent);display:inline-block;animation:na-dot 1.1s ease .15s infinite"></span><span style="width:6px;height:6px;border-radius:50%;background:var(--color-accent);display:inline-block;animation:na-dot 1.1s ease .3s infinite"></span></div></sc-if>
+                  <sc-if value="{{ msg.isCardRings }}" hint-placeholder-val="{{ false }}">
+                    <div class="card elev-sm" style="max-width:360px;width:90%">
+                      <div style="margin-bottom:8px"><span style="font-size:11.5px;padding:6px 14px;border-radius:999px;background:var(--color-accent-100);color:var(--color-accent-700)">{{ msg.matchPct }}% match</span></div>
+                      <div class="card-title" style="margin-bottom:2px">{{ msg.mealName }}</div>
+                      <div style="font-size:11.5px;color:color-mix(in srgb, var(--color-text) 55%, transparent);margin-bottom:10px">Identified from photo</div>
+                      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px">
+                        <sc-for list="{{ msg.itemPills }}" as="pill" hint-placeholder-count="2">
+                          <span style="font-size:11.5px;white-space:nowrap;padding:6px 13px;border-radius:999px;background:var(--color-neutral-200);color:var(--color-text)">{{ pill }}</span>
+                        </sc-for>
+                      </div>
+                      <div style="position:relative;width:300px;height:320px;margin:0 auto 16px">
+                        <sc-for list="{{ msg.ringMacros }}" as="mac" hint-placeholder-count="6">
+                          <div style="position:absolute;left:{{ mac.cx }}px;top:{{ mac.cy }}px;transform:translate(-50%,-50%)">
+                            <svg width="{{ mac.d }}" height="{{ mac.d }}" viewBox="0 0 {{ mac.d }} {{ mac.d }}" style="display:block">
+                              <circle cx="{{ mac.cxy }}" cy="{{ mac.cxy }}" r="{{ mac.r }}" fill="none" stroke="var(--color-divider)" stroke-width="6"/>
+                              <circle cx="{{ mac.cxy }}" cy="{{ mac.cxy }}" r="{{ mac.r }}" fill="none" stroke="{{ mac.ringColor }}" stroke-width="6" stroke-linecap="round" stroke-dasharray="{{ mac.circumference }}" stroke-dashoffset="{{ mac.dashOffset }}" style="transform-origin:center;transform:rotate(-90deg)"/>
+                            </svg>
+                            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                              <span style="font-family:var(--font-heading);font-weight:var(--font-heading-weight);font-size:15px;line-height:1.1">{{ mac.value }}</span>
+                              <span style="font-size:9.5px;color:color-mix(in srgb, var(--color-text) 55%, transparent)">{{ mac.pct }}</span>
+                            </div>
+                          </div>
+                          <div style="position:absolute;left:{{ mac.lx }}px;top:{{ mac.ly }}px;transform:translate(-50%,-50%);font-size:11px;color:var(--color-text);white-space:nowrap">{{ mac.label }}</div>
+                        </sc-for>
+                        <div style="position:absolute;left:150px;top:162px;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;width:130px">
+                          <div style="position:relative">
+                            <svg width="100" height="100" viewBox="0 0 100 100">
+                              <circle cx="50" cy="50" r="44" fill="none" stroke="var(--color-divider)" stroke-width="8"/>
+                              <circle cx="50" cy="50" r="44" fill="none" stroke="var(--color-accent)" stroke-width="8" stroke-linecap="round" stroke-dasharray="276" stroke-dashoffset="{{ msg.energyDashOffset }}" style="transform-origin:center;transform:rotate(-90deg)"/>
+                            </svg>
+                            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                              <span style="font-size:12px;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Energy</span>
+                              <span style="font-family:var(--font-heading);font-weight:var(--font-heading-weight);font-size:26px;line-height:1.1">{{ msg.calories }}</span>
+                              <span style="font-size:10.5px;color:color-mix(in srgb, var(--color-text) 55%, transparent)">kcal · {{ msg.energyPctNum }}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <sc-if value="{{ msg.recommendation }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;align-items:center;gap:8px;font-size:12px;padding-top:12px;border-top:1px solid var(--color-divider)">
+                          <span style="color:var(--color-accent)">✓</span>
+                          <span>{{ msg.recommendation }}</span>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ msg.isCardBars }}" hint-placeholder-val="{{ false }}">
+                    <div class="card elev-sm" style="max-width:340px;width:88%">
+                      <div class="card-kicker">Vision Agent · Nutrient Card</div>
+                      <div class="card-title">{{ msg.mealName }}</div>
+                      <div style="font-size:26px;font-family:var(--font-heading);font-weight:var(--font-heading-weight)">{{ msg.calories }} kcal</div>
+                      <sc-for list="{{ msg.macros }}" as="mac" hint-placeholder-count="4">
+                        <div style="display:flex;align-items:center;gap:8px">
+                          <span style="font-size:11.5px;width:52px;flex:none;opacity:0.7">{{ mac.label }}</span>
+                          <div style="flex:1;height:6px;background:var(--color-divider);border-radius:4px;overflow:hidden"><div style="height:100%;background:var(--color-accent);width:{{ mac.pct }}"></div></div>
+                          <span style="font-size:11.5px;width:36px;text-align:right;flex:none">{{ mac.value }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ msg.isRag }}" hint-placeholder-val="{{ false }}">
+                    <div style="max-width:82%;display:flex;flex-direction:column;gap:8px">
+                      <div style="background:var(--color-surface);padding:10px 14px;border-radius:var(--radius-lg);font-size:14px;line-height:1.55">{{ msg.text }}</div>
+                      <div style="display:flex;gap:6px;flex-wrap:wrap">
+                        <sc-for list="{{ msg.sources }}" as="src" hint-placeholder-count="2"><span class="tag tag-outline">{{ src }}</span></sc-for>
+                      </div>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ msg.isSql }}" hint-placeholder-val="{{ false }}">
+                    <div class="card elev-sm" style="max-width:340px;width:88%">
+                      <div class="card-kicker">Text2SQL Agent</div>
+                      <p class="card-body" style="margin:0 0 4px">{{ msg.text }}</p>
+                      <sc-for list="{{ msg.rows }}" as="r" hint-placeholder-count="2">
+                        <div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;border-bottom:1px solid color-mix(in srgb, var(--color-text) 8%, transparent)"><span>{{ r.label }}</span><span style="opacity:0.7">{{ r.value }}</span></div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+            <div style="margin-top:var(--space-3);display:flex;flex-direction:column;gap:var(--space-2)">
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button type="button" class="btn btn-secondary" style="font-size:12.5px" onClick="{{ quickReplyAdvice }}">What should I eat now?</button>
+                <button type="button" class="btn btn-secondary" style="font-size:12.5px" onClick="{{ quickReplyHistory }}">What did I eat yesterday?</button>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <button type="button" class="btn btn-primary btn-icon" aria-label="Log a meal photo" onClick="{{ handleCameraClick }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+                <input class="input" placeholder="Ask about nutrition, meals, or recommendations…" value="{{ chatDraft }}" onChange="{{ setChatDraftInput }}" onKeyDown="{{ handleComposerKeyDown }}"/>
+                <button type="button" class="btn btn-primary btn-icon" aria-label="Send" onClick="{{ handleSend }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ tabDashboard }}" hint-placeholder-val="{{ false }}">
+          <div style="max-width:560px;padding-left:var(--space-4)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4)">
+              <div>
+                <div style="font-size:22px;font-family:var(--font-heading);font-weight:var(--font-heading-weight);line-height:1.15">Good afternoon, Maya 👋</div>
+                <span style="font-size:12.5px;color:var(--color-accent-700)">You're on track — {{ caloriesLeft }} kcal left today.</span>
+              </div>
+              <span style="width:42px;height:42px;flex:none;border-radius:50%;background:var(--color-accent-100);color:var(--color-accent-700);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-weight:var(--font-heading-weight);font-size:16px">MC</span>
+            </div>
+
+            <div style="background:var(--color-surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);padding:var(--space-5) var(--space-4)">
+              <div style="text-align:center;margin-bottom:var(--space-1)">
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 50%, transparent)">Calorie budget</div>
+                <div style="font-size:24px;color:var(--color-accent-700);font-family:var(--font-heading);font-weight:var(--font-heading-weight);line-height:1.1">{{ goalCalories }}</div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--space-2)">
+                <div style="display:flex;flex-direction:column;gap:var(--space-4);text-align:right">
+                  <div><div style="font-size:11px;letter-spacing:0.04em;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Exercise</div><div style="font-size:22px;color:var(--color-accent);font-family:var(--font-heading);font-weight:var(--font-heading-weight)">{{ exerciseCals }}</div></div>
+                  <div><div style="font-size:11px;letter-spacing:0.04em;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Steps</div><div style="font-size:22px;color:var(--color-accent);font-family:var(--font-heading);font-weight:var(--font-heading-weight)">{{ stepsCount }}</div></div>
+                  <div><div style="font-size:11px;letter-spacing:0.04em;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Water</div><div style="font-size:22px;color:var(--color-accent);font-family:var(--font-heading);font-weight:var(--font-heading-weight)">{{ waterCups }}</div></div>
+                </div>
+                <div style="position:relative;width:176px;height:176px;flex:none">
+                  <svg width="176" height="176" viewBox="0 0 120 120" style="position:absolute;inset:0">
+                    <circle cx="60" cy="60" r="52" fill="none" stroke="var(--color-neutral-200)" stroke-width="9"/>
+                    <circle cx="60" cy="60" r="52" fill="none" stroke="var(--color-accent)" stroke-width="9" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="{{ dialDashoffsetRing }}" transform="rotate(-90 60 60)"/>
+                  </svg>
+                  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                    <span style="font-size:38px;line-height:1;color:var(--color-accent);font-family:var(--font-heading);font-weight:var(--font-heading-weight)">{{ caloriesLeft }}</span>
+                    <span style="font-size:13px;color:color-mix(in srgb, var(--color-text) 55%, transparent);margin-top:2px">Left</span>
+                  </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:var(--space-4);text-align:left">
+                  <div><div style="font-size:11px;letter-spacing:0.04em;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Breakfast</div><div style="font-size:22px;color:var(--color-accent);font-family:var(--font-heading);font-weight:var(--font-heading-weight)">{{ breakfastCals }}</div></div>
+                  <div><div style="font-size:11px;letter-spacing:0.04em;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Lunch</div><div style="font-size:22px;color:var(--color-accent);font-family:var(--font-heading);font-weight:var(--font-heading-weight)">{{ lunchCals }}</div></div>
+                  <div><div style="font-size:11px;letter-spacing:0.04em;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Dinner</div><div style="font-size:22px;color:var(--color-accent);font-family:var(--font-heading);font-weight:var(--font-heading-weight)">{{ dinnerCals }}</div></div>
+                  <div><div style="font-size:11px;letter-spacing:0.04em;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Snacks</div><div style="font-size:22px;color:var(--color-accent);font-family:var(--font-heading);font-weight:var(--font-heading-weight)">{{ snacksCals }}</div></div>
+                </div>
+              </div>
+              <div style="text-align:center;margin-top:var(--space-4);padding-top:var(--space-4);border-top:1px solid var(--color-divider)">
+                <a href="#" onClick="{{ setTabSummary }}" style="font-size:14px;font-weight:600">View all meals →</a>
+              </div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;gap:2px;margin-top:var(--space-4)">
+              <sc-for list="{{ weekDays }}" as="d" hint-placeholder-count="7">
+                <div style="flex:1;text-align:center;padding:8px 0;border-radius:var(--radius-md);background:{{ d.bg }};color:{{ d.color }}">
+                  <div style="font-size:11px;opacity:0.7">{{ d.dow }}</div>
+                  <div style="font-size:15px;font-weight:{{ d.weight }};font-family:var(--font-heading)">{{ d.day }}</div>
+                </div>
+              </sc-for>
+            </div>
+
+            <h3 style="font-size:15px;margin:var(--space-5) 0 var(--space-3)">My daily advice</h3>
+            <div style="display:flex;gap:var(--space-3);overflow-x:auto;padding-bottom:4px">
+              <sc-for list="{{ adviceCards }}" as="c" hint-placeholder-count="3">
+                <div class="card elev-sm" style="min-width:180px;max-width:180px;flex:none">
+                  <div class="card-kicker">{{ c.kicker }}</div>
+                  <div style="font-size:15px;font-family:var(--font-heading);font-weight:var(--font-heading-weight);line-height:1.25;margin-bottom:4px">{{ c.title }}</div>
+                  <p class="card-body" style="opacity:0.65;font-size:12.5px;margin:0">{{ c.body }}</p>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ tabSummary }}" hint-placeholder-val="{{ false }}">
+          <div style="padding-left:var(--space-4)">
+          <h2 style="font-size:22px;margin:0 0 var(--space-3)">Summary &amp; Foods</h2>
+          <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-4);align-items:center">
+            <div class="seg">
+              <label class="seg-opt"><input type="radio" name="sr" checked="{{ rangeDay }}" onChange="{{ setRangeDay }}"/>Day</label>
+              <label class="seg-opt"><input type="radio" name="sr" checked="{{ rangeWeek }}" onChange="{{ setRangeWeek }}"/>Week</label>
+              <label class="seg-opt"><input type="radio" name="sr" checked="{{ rangeMonth }}" onChange="{{ setRangeMonth }}"/>Month</label>
+            </div>
+            <input class="input" style="max-width:220px" placeholder="Search foods…" value="{{ summarySearch }}" onChange="{{ setSummarySearchInput }}"/>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:var(--space-2)">
+            <sc-for list="{{ filteredMeals }}" as="meal" hint-placeholder-count="3">
+              <div onClick="{{ meal.onSelect }}" style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2);border-radius:var(--radius-md);cursor:pointer" style-hover="background:var(--color-surface)">
+                <div style="width:52px;height:52px;flex:none"><image-slot id="{{ meal.slotId }}" shape="rounded" radius="8" placeholder="Meal"></image-slot></div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ meal.name }}</div>
+                  <div style="display:flex;gap:6px;align-items:center;margin-top:2px"><span class="tag tag-neutral">{{ meal.mealType }}</span><span style="font-size:11.5px;opacity:0.55">{{ meal.date }} · {{ meal.time }}</span></div>
+                </div>
+                <div style="font-size:14px;font-weight:600;flex:none">{{ meal.calories }} kcal</div>
+              </div>
+            </sc-for>
+          </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ tabMealAnalysis }}" hint-placeholder-val="{{ false }}">
+          <div style="padding-left:var(--space-4)">
+          <a href="#" onClick="{{ setTabSummary }}" style="font-size:13px;display:inline-block;margin-bottom:var(--space-3)">← Back to Summary</a>
+          <div style="display:grid;grid-template-columns:{{ mealAnalysisGridCols }};gap:var(--space-5)">
+            <div style="width:100%;max-width:280px;aspect-ratio:4/3"><image-slot id="{{ selectedMeal.slotId }}" shape="rounded" radius="12" placeholder="Meal photo"></image-slot></div>
+            <div>
+              <h2 style="font-size:20px;margin:0 0 2px">{{ selectedMeal.name }}</h2>
+              <p style="font-size:13px;opacity:0.6;margin:0 0 var(--space-4)">{{ selectedMeal.mealType }} · {{ selectedMeal.date }} · {{ selectedMeal.time }}</p>
+              <div class="card-kicker" style="margin-bottom:6px">Vision Agent · identified items</div>
+              <div style="display:flex;flex-direction:column;gap:var(--space-2)">
+                <sc-for list="{{ selectedMeal.items }}" as="item" hint-placeholder-count="3">
+                  <div style="padding:var(--space-2) 0;border-bottom:1px solid color-mix(in srgb, var(--color-text) 8%, transparent)">
+                    <sc-if value="{{ item.isEditing }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;gap:6px">
+                        <input class="input" value="{{ editingDraft }}" onChange="{{ setEditingDraftInput }}"/>
+                        <button type="button" class="btn btn-primary btn-icon" aria-label="Save" onClick="{{ saveEdit }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>
+                        <button type="button" class="btn btn-secondary btn-icon" aria-label="Cancel" onClick="{{ cancelEdit }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg></button>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ item.isNotEditing }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex;align-items:center;gap:10px">
+                        <div style="flex:1;min-width:0">
+                          <div style="font-size:14px;font-weight:600">{{ item.name }}<sc-if value="{{ item.corrected }}" hint-placeholder-val="{{ false }}"><span class="tag tag-accent-2" style="margin-left:6px;font-size:9.5px">corrected</span></sc-if></div>
+                          <div style="font-size:12px;opacity:0.6">{{ item.qty }}</div>
+                        </div>
+                        <div style="width:70px;flex:none">
+                          <div style="height:5px;background:var(--color-divider);border-radius:3px;overflow:hidden"><div style="height:100%;background:var(--color-accent);width:{{ item.confidencePct }}"></div></div>
+                          <div style="font-size:10.5px;opacity:0.6;text-align:right;margin-top:2px">{{ item.confidenceLabel }}</div>
+                        </div>
+                        <button type="button" class="btn btn-ghost btn-icon" aria-label="Edit" onClick="{{ item.onEdit }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ tabNutrients }}" hint-placeholder-val="{{ false }}">
+          <div style="max-width:640px;padding-left:var(--space-4)">
+          <h2 style="font-size:22px;margin:0 0 var(--space-3)">Calories &amp; Nutrients</h2>
+          <div class="seg" style="margin-bottom:var(--space-5)">
+            <label class="seg-opt"><input type="radio" name="ns" checked="{{ scopeMeal }}" onChange="{{ setScopeMeal }}"/>This meal</label>
+            <label class="seg-opt"><input type="radio" name="ns" checked="{{ scopeDay }}" onChange="{{ setScopeDay }}"/>Today</label>
+            <label class="seg-opt"><input type="radio" name="ns" checked="{{ scopePeriod }}" onChange="{{ setScopePeriod }}"/>This week</label>
+          </div>
+
+          <div style="display:grid;grid-template-columns:{{ nutrientCardsCols }};gap:var(--space-3);margin-bottom:var(--space-5)">
+            <div class="card" style="gap:6px;padding:var(--space-3)">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <span style="font-size:12px;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Calories</span>
+                <span style="font-size:10.5px;font-weight:700;background:#e1f2e7;color:#1f7040;padding:2px 8px;border-radius:10px">{{ scopeCaloriesPct }}%</span>
+              </div>
+              <div style="font-family:var(--font-heading);font-weight:var(--font-heading-weight);font-size:22px">{{ scopeCalories }} <span style="font-size:12px;font-weight:400;opacity:.6">kcal</span></div>
+              <svg width="100%" height="30" viewBox="0 0 90 30" preserveAspectRatio="none"><polyline points="0,24 15,20 30,22 45,12 60,15 75,6 90,9" fill="none" stroke="#2e9e5b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="card" style="gap:6px;padding:var(--space-3)">
+              <span style="font-size:12px;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Carbs (NEAT)</span>
+              <div style="font-family:var(--font-heading);font-weight:var(--font-heading-weight);font-size:22px">{{ scopeCarbs }} <span style="font-size:12px;font-weight:400;opacity:.6">g</span></div>
+              <svg width="100%" height="30" viewBox="0 0 90 30" preserveAspectRatio="none"><g fill="#f2a33c"><rect x="0" y="12" width="9" height="18" rx="2"/><rect x="13" y="4" width="9" height="26" rx="2"/><rect x="26" y="16" width="9" height="14" rx="2"/><rect x="39" y="2" width="9" height="28" rx="2"/><rect x="52" y="10" width="9" height="20" rx="2"/><rect x="65" y="6" width="9" height="24" rx="2"/><rect x="78" y="14" width="9" height="16" rx="2"/></g></svg>
+            </div>
+            <div class="card" style="gap:6px;padding:var(--space-3)">
+              <span style="font-size:12px;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Protein (EAT)</span>
+              <div style="font-family:var(--font-heading);font-weight:var(--font-heading-weight);font-size:22px">{{ scopeProtein }} <span style="font-size:12px;font-weight:400;opacity:.6">g</span></div>
+              <svg width="100%" height="30" viewBox="0 0 90 30" preserveAspectRatio="none"><g fill="#e0575c"><rect x="15" y="8" width="10" height="22" rx="2"/><rect x="45" y="2" width="10" height="28" rx="2"/></g></svg>
+            </div>
+            <div class="card" style="gap:6px;padding:var(--space-3)">
+              <span style="font-size:12px;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Fat &amp; sugar (TEF)</span>
+              <div style="font-family:var(--font-heading);font-weight:var(--font-heading-weight);font-size:22px">{{ scopeFat }} <span style="font-size:12px;font-weight:400;opacity:.6">g</span></div>
+              <svg width="100%" height="30" viewBox="0 0 90 30" preserveAspectRatio="none"><g><rect x="0" y="14" width="9" height="16" rx="2" fill="#2e9e5b"/><rect x="13" y="6" width="9" height="24" rx="2" fill="#f2a33c"/><rect x="26" y="18" width="9" height="12" rx="2" fill="#e0575c"/><rect x="39" y="4" width="9" height="26" rx="2" fill="#6a9be8"/><rect x="52" y="12" width="9" height="18" rx="2" fill="#d6006c"/><rect x="65" y="8" width="9" height="22" rx="2" fill="#f2c94c"/><rect x="78" y="16" width="9" height="14" rx="2" fill="#2e9e5b"/></g></svg>
+            </div>
+          </div>
+
+          <div class="card elev-sm" style="padding:var(--space-4);margin-bottom:var(--space-5)">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2px">
+              <div><div style="font-size:11px;color:color-mix(in srgb, var(--color-text) 55%, transparent)">Average expenditure</div><div style="font-family:var(--font-heading);font-weight:var(--font-heading-weight);font-size:24px">{{ weeklyAvg }} <span style="font-size:13px;font-weight:400;opacity:.6">kcal</span></div></div>
+              <div style="text-align:right"><div style="font-size:11px;color:color-mix(in srgb, var(--color-text) 55%, transparent)">Difference</div><div style="font-family:var(--font-heading);font-weight:var(--font-heading-weight);font-size:16px;color:#e0575c">{{ weeklyDiffLabel }}</div></div>
+            </div>
+            <svg width="100%" height="150" viewBox="0 0 280 150" style="margin-top:8px">
+              <line x1="0" y1="20" x2="280" y2="20" stroke="var(--color-divider)"/><line x1="0" y1="70" x2="280" y2="70" stroke="var(--color-divider)"/><line x1="0" y1="120" x2="280" y2="120" stroke="var(--color-divider)"/>
+              <g fill="#6a9be8">
+                <sc-for list="{{ weekBars }}" as="wb" hint-placeholder-count="7"><rect x="{{ wb.x }}" y="{{ wb.y }}" width="26" height="{{ wb.h }}" rx="4"></rect></sc-for>
+              </g>
+              <polyline points="{{ weekLinePoints }}" fill="none" stroke="#e0575c" stroke-width="2.5" stroke-dasharray="4 3"/>
+              <sc-for list="{{ weekDots }}" as="wd" hint-placeholder-count="7"><circle cx="{{ wd.x }}" cy="{{ wd.y }}" r="3.5" fill="#e0575c"></circle></sc-for>
+            </svg>
+            <div style="display:flex;justify-content:space-between;font-size:10.5px;color:color-mix(in srgb, var(--color-text) 55%, transparent);margin-top:4px">
+              <sc-for list="{{ weekDays }}" as="d" hint-placeholder-count="7"><span style="flex:1;text-align:center">{{ d.dow }}</span></sc-for>
+            </div>
+            <div style="display:flex;gap:14px;font-size:11.5px;margin-top:10px">
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;background:#6a9be8;border-radius:2px;display:inline-block"></span>Intake</span>
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;background:#e0575c;border-radius:50%;display:inline-block"></span>Goal (TDEE)</span>
+            </div>
+          </div>
+
+          <div class="card elev-sm" style="padding:var(--space-4)">
+            <div style="font-family:var(--font-heading);font-weight:var(--font-heading-weight);font-size:15px;margin-bottom:12px">Macro analysis</div>
+            <div style="display:flex;align-items:center;gap:var(--space-5);flex-wrap:wrap">
+              <div style="width:140px;height:140px;border-radius:50%;flex:none;background:{{ macroDonutGradient }}"></div>
+              <div style="flex:1;min-width:160px;display:flex;flex-direction:column;gap:8px;font-size:13px">
+                <div style="display:flex;justify-content:space-between"><span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#d6006c;display:inline-block"></span>Protein</span><b style="font-family:var(--font-heading)">{{ scopeProtein }} g · {{ macroPctProtein }}%</b></div>
+                <div style="display:flex;justify-content:space-between"><span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#f2a33c;display:inline-block"></span>Fat</span><b style="font-family:var(--font-heading)">{{ scopeFat }} g · {{ macroPctFat }}%</b></div>
+                <div style="display:flex;justify-content:space-between"><span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#f2c94c;display:inline-block"></span>Carbs</span><b style="font-family:var(--font-heading)">{{ scopeCarbs }} g · {{ macroPctCarbs }}%</b></div>
+              </div>
+            </div>
+            <p style="font-size:12px;color:color-mix(in srgb, var(--color-text) 55%, transparent);margin:12px 0 0;padding-top:10px;border-top:1px solid var(--color-divider)">Total = Protein × 4 + Fat × 9 + Carbs × 4 = <b style="color:var(--color-text)">{{ scopeCalories }} kcal</b></p>
+          </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ tabSettings }}" hint-placeholder-val="{{ false }}">
+          <h2 style="font-size:22px;margin:0 0 var(--space-5)">Settings</h2>
+          <div style="max-width:420px">
+            <h3 style="font-size:15px;margin-bottom:var(--space-2)">Diet goals</h3>
+            <div class="field"><label for="st-cal">Calorie goal (kcal/day)</label><input class="input" id="st-cal" type="number" value="{{ obGoalCalories }}" onChange="{{ setGoalCaloriesInput }}"/></div>
+            <div class="field"><label for="st-pro">Protein goal (g/day)</label><input class="input" id="st-pro" type="number" value="{{ obGoalProtein }}" onChange="{{ setGoalProteinInput }}"/></div>
+
+            <h3 style="font-size:15px;margin:var(--space-5) 0 var(--space-2)">Health restrictions &amp; allergies</h3>
+            <div style="display:flex;flex-wrap:wrap;gap:var(--space-2)">
+              <sc-if value="{{ obGluten }}" hint-placeholder-val="{{ false }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-accent);background:var(--color-accent-100);color:var(--color-accent-700);font-size:13px;white-space:nowrap" onClick="{{ toggleGluten }}">Gluten-free ✓</span></sc-if>
+              <sc-if value="{{ obGlutenOff }}" hint-placeholder-val="{{ true }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-divider);background:transparent;color:var(--color-text);font-size:13px;white-space:nowrap" onClick="{{ toggleGluten }}">Gluten-free</span></sc-if>
+              <sc-if value="{{ obNuts }}" hint-placeholder-val="{{ true }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-accent);background:var(--color-accent-100);color:var(--color-accent-700);font-size:13px;white-space:nowrap" onClick="{{ toggleNuts }}">Nut allergy ✓</span></sc-if>
+              <sc-if value="{{ obNutsOff }}" hint-placeholder-val="{{ false }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-divider);background:transparent;color:var(--color-text);font-size:13px;white-space:nowrap" onClick="{{ toggleNuts }}">Nut allergy</span></sc-if>
+              <sc-if value="{{ obDairy }}" hint-placeholder-val="{{ false }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-accent);background:var(--color-accent-100);color:var(--color-accent-700);font-size:13px;white-space:nowrap" onClick="{{ toggleDairy }}">Dairy-free ✓</span></sc-if>
+              <sc-if value="{{ obDairyOff }}" hint-placeholder-val="{{ true }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-divider);background:transparent;color:var(--color-text);font-size:13px;white-space:nowrap" onClick="{{ toggleDairy }}">Dairy-free</span></sc-if>
+              <sc-if value="{{ obLowSodium }}" hint-placeholder-val="{{ false }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-accent);background:var(--color-accent-100);color:var(--color-accent-700);font-size:13px;white-space:nowrap" onClick="{{ toggleLowSodium }}">Low-sodium ✓</span></sc-if>
+              <sc-if value="{{ obLowSodiumOff }}" hint-placeholder-val="{{ true }}"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--color-divider);background:transparent;color:var(--color-text);font-size:13px;white-space:nowrap" onClick="{{ toggleLowSodium }}">Low-sodium</span></sc-if>
+            </div>
+
+            <h3 style="font-size:15px;margin:var(--space-5) 0 var(--space-2)">Diet type</h3>
+            <div style="display:grid;gap:var(--space-1)">
+              <label class="radio"><input type="radio" name="st-diet" checked="{{ dietBalanced }}" onChange="{{ setDietBalanced }}"/><span class="dot"></span>Balanced</label>
+              <label class="radio"><input type="radio" name="st-diet" checked="{{ dietVegetarian }}" onChange="{{ setDietVegetarian }}"/><span class="dot"></span>Vegetarian</label>
+              <label class="radio"><input type="radio" name="st-diet" checked="{{ dietKeto }}" onChange="{{ setDietKeto }}"/><span class="dot"></span>Ketogenic</label>
+              <label class="radio"><input type="radio" name="st-diet" checked="{{ dietLowCarb }}" onChange="{{ setDietLowCarb }}"/><span class="dot"></span>Low-carb</label>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:var(--space-3);margin-top:var(--space-6)">
+              <button type="button" class="btn btn-primary" onClick="{{ saveSettings }}">Save changes</button>
+              <sc-if value="{{ savedFlash }}" hint-placeholder-val="{{ false }}"><span class="tag tag-accent">Saved</span></sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+
+      <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:none;display:flex;border-top:1px solid var(--color-divider);background:var(--color-surface)">
+          <div onClick="{{ setTabChat }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;cursor:pointer;color:{{ navColorChat }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-4 4V5z"/></svg><span style="font-size:9.5px">Chat</span></div>
+          <div onClick="{{ setTabDashboard }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;cursor:pointer;color:{{ navColorDashboard }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="10" width="3.4" height="10"/><rect x="10.3" y="5" width="3.4" height="15"/><rect x="16.6" y="2" width="3.4" height="18"/></svg><span style="font-size:9.5px">Dashboard</span></div>
+          <div onClick="{{ setTabSummary }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;cursor:pointer;color:{{ navColorSummary }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h2M4 12h2M4 18h2M9 6h11M9 12h11M9 18h11"/></svg><span style="font-size:9.5px">Foods</span></div>
+          <div onClick="{{ setTabMealAnalysis }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;cursor:pointer;color:{{ navColorMealAnalysis }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6"/><line x1="20" y1="20" x2="15.5" y2="15.5"/></svg><span style="font-size:9.5px">Analysis</span></div>
+          <div onClick="{{ setTabNutrients }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;cursor:pointer;color:{{ navColorNutrients }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21c9 0 14-5 14-14 0-1-1-2-2-2C8 5 3 10 3 19c0 1 1 2 2 2z"/></svg><span style="font-size:9.5px">Nutrients</span></div>
+          <div onClick="{{ setTabSettings }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;cursor:pointer;color:{{ navColorSettings }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span style="font-size:9.5px">Settings</span></div>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isPortalAdmin }}" hint-placeholder-val="{{ false }}">
+    <div style="width:200px;flex:none;background:var(--color-surface);padding:var(--space-4) var(--space-2);display:flex;flex-direction:column;gap:2px;border-right:1px solid var(--color-divider)">
+      <div style="font-family:var(--font-heading);font-weight:var(--font-heading-weight);font-size:16px;padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3)">Admin Portal</div>
+      <div onClick="{{ setAdminTabUsers }}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-md);cursor:pointer;color:{{ navColorUsers }};background:{{ navBgUsers }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.5 3-6 7-6s7 2.5 7 6"/><circle cx="17" cy="9" r="2.3"/><path d="M15.2 20c.2-2.2 1.6-4.2 4-4.4"/></svg><span style="font-size:14px">Users</span></div>
+      <div onClick="{{ setAdminTabAudit }}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-md);cursor:pointer;color:{{ navColorAudit }};background:{{ navBgAudit }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v2H9z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><span style="font-size:14px">Audit Log</span></div>
+    </div>
+    <div style="flex:1;min-width:0;overflow-y:auto;padding:var(--space-5)">
+      <sc-if value="{{ adminTabUsers }}" hint-placeholder-val="{{ true }}">
+        <h2 style="font-size:22px;margin:0 0 2px">User management</h2>
+        <p style="font-size:13px;opacity:0.6;margin:0 0 var(--space-4)">Change roles and account status — changes take effect immediately.</p>
+        <table class="table">
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <sc-for list="{{ adminUsers }}" as="u" hint-placeholder-count="3">
+              <tr>
+                <td>{{ u.name }}</td>
+                <td class="text-muted">{{ u.email }}</td>
+                <td><sc-if value="{{ u.isAdmin }}" hint-placeholder-val="{{ false }}"><span class="tag tag-accent-2">Admin</span></sc-if><sc-if value="{{ u.isUser }}" hint-placeholder-val="{{ true }}"><span class="tag tag-neutral">User</span></sc-if></td>
+                <td><sc-if value="{{ u.isActive }}" hint-placeholder-val="{{ true }}"><span class="tag tag-accent">Active</span></sc-if><sc-if value="{{ u.isSuspended }}" hint-placeholder-val="{{ false }}"><span class="tag tag-outline">Suspended</span></sc-if></td>
+                <td style="white-space:nowrap"><button type="button" class="btn btn-ghost" style="font-size:12px;padding-inline:6px" onClick="{{ u.onToggleRole }}">{{ u.roleButtonLabel }}</button><button type="button" class="btn btn-ghost" style="font-size:12px;padding-inline:6px" onClick="{{ u.onToggleStatus }}">{{ u.statusButtonLabel }}</button></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </sc-if>
+      <sc-if value="{{ adminTabAudit }}" hint-placeholder-val="{{ false }}">
+        <h2 style="font-size:22px;margin:0 0 2px">Audit Log</h2>
+        <p style="font-size:13px;opacity:0.6;margin:0 0 var(--space-4)">Read-only, Admin-only. Recent activity streams from a Redis cache; searches beyond its window fall through to Postgres.</p>
+        <div class="seg" style="margin-bottom:var(--space-4)">
+          <label class="seg-opt"><input type="radio" name="au" checked="{{ auditIsCache }}" onChange="{{ setAuditCache }}"/>Live (Redis cache)</label>
+          <label class="seg-opt"><input type="radio" name="au" checked="{{ auditIsFull }}" onChange="{{ setAuditFull }}"/>Full history (Postgres)</label>
+        </div>
+        <table class="table">
+          <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Source IP</th><th>Layer</th></tr></thead>
+          <tbody>
+            <sc-for list="{{ filteredAuditLogs }}" as="log" hint-placeholder-count="4">
+              <tr>
+                <td class="text-muted" style="white-space:nowrap">{{ log.timestamp }}</td>
+                <td>{{ log.user }}</td>
+                <td>{{ log.action }}</td>
+                <td class="text-muted">{{ log.ip }}</td>
+                <td><sc-if value="{{ log.isCache }}" hint-placeholder-val="{{ true }}"><span class="tag tag-accent">Redis</span></sc-if><sc-if value="{{ log.isArchive }}" hint-placeholder-val="{{ false }}"><span class="tag tag-neutral">Postgres</span></sc-if></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </sc-if>
+    </div>
+  </sc-if>
+
+</div>
+</div>
+</sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1400,&quot;height&quot;:900},&quot;initialTheme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;white&quot;,&quot;light&quot;,&quot;midnight&quot;],&quot;default&quot;:&quot;white&quot;,&quot;tsType&quot;:&quot;'white'|'light'|'midnight'&quot;,&quot;section&quot;:&quot;Theme&quot;},&quot;initialPortal&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;user&quot;,&quot;admin&quot;],&quot;default&quot;:&quot;user&quot;,&quot;tsType&quot;:&quot;'user'|'admin'&quot;,&quot;section&quot;:&quot;Prototype&quot;},&quot;initialViewMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;desktop&quot;,&quot;mobile&quot;],&quot;default&quot;:&quot;mobile&quot;,&quot;tsType&quot;:&quot;'desktop'|'mobile'&quot;,&quot;section&quot;:&quot;Prototype&quot;},&quot;mealCardStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;rings&quot;,&quot;bars&quot;],&quot;default&quot;:&quot;rings&quot;,&quot;tsType&quot;:&quot;'rings'|'bars'&quot;,&quot;section&quot;:&quot;Prototype&quot;}}">
+class Component extends DCLogic {
+  state = {
+    stage: 'login',
+    loginUser: '', loginPass: '',
+    obStep: 0,
+    obGoalCalories: 2200, obGoalProtein: 130,
+    restrictions: { gluten: false, nuts: false, dairy: false, lowSodium: false },
+    dietType: 'balanced',
+    portal: 'user', viewMode: 'mobile', theme: 'white',
+    activeTab: 'chat', adminTab: 'users',
+    summaryRange: 'week', summarySearch: '',
+    selectedMealId: 'm1',
+    nutrientsScope: 'day',
+    editingItemId: null, editingDraft: '',
+    auditSource: 'cache',
+    chatDraft: '', chatBusy: false,
+    msgSeq: 10,
+    consumedToday: 922,
+    savedFlash: false,
+    meals: [
+      { id: 'm1', name: 'Grilled Chicken Bowl', mealType: 'Lunch', date: 'Today', time: '12:40 PM', calories: 612, protein: 48, fat: 18, carbs: 52, sugar: 6,
+        items: [
+          { id: 'i1', name: 'Grilled chicken breast', qty: '150 g', confidence: 0.94, corrected: false },
+          { id: 'i2', name: 'Brown rice', qty: '120 g', confidence: 0.88, corrected: false },
+          { id: 'i3', name: 'Steamed broccoli', qty: '80 g', confidence: 0.91, corrected: false },
+          { id: 'i4', name: 'Olive oil dressing', qty: '1 tbsp', confidence: 0.76, corrected: false }
+        ] },
+      { id: 'm2', name: 'Greek Yogurt & Berries', mealType: 'Breakfast', date: 'Today', time: '8:15 AM', calories: 310, protein: 22, fat: 7, carbs: 38, sugar: 24,
+        items: [
+          { id: 'i5', name: 'Greek yogurt', qty: '200 g', confidence: 0.97, corrected: false },
+          { id: 'i6', name: 'Blueberries', qty: '60 g', confidence: 0.90, corrected: false },
+          { id: 'i7', name: 'Honey', qty: '1 tsp', confidence: 0.82, corrected: false },
+          { id: 'i8', name: 'Granola', qty: '20 g', confidence: 0.85, corrected: false }
+        ] },
+      { id: 'm3', name: 'Salmon & Asparagus', mealType: 'Dinner', date: 'Yesterday', time: '7:05 PM', calories: 548, protein: 41, fat: 26, carbs: 22, sugar: 4,
+        items: [
+          { id: 'i9', name: 'Baked salmon fillet', qty: '160 g', confidence: 0.95, corrected: false },
+          { id: 'i10', name: 'Asparagus', qty: '100 g', confidence: 0.89, corrected: false },
+          { id: 'i11', name: 'Lemon butter sauce', qty: '1 tbsp', confidence: 0.71, corrected: false }
+        ] },
+      { id: 'm4', name: 'Turkey Sandwich', mealType: 'Lunch', date: 'Yesterday', time: '1:20 PM', calories: 460, protein: 29, fat: 14, carbs: 54, sugar: 7,
+        items: [
+          { id: 'i12', name: 'Whole grain bread', qty: '2 slices', confidence: 0.93, corrected: false },
+          { id: 'i13', name: 'Sliced turkey', qty: '90 g', confidence: 0.90, corrected: false },
+          { id: 'i14', name: 'Cheddar cheese', qty: '20 g', confidence: 0.84, corrected: false }
+        ] },
+      { id: 'm5', name: 'Oatmeal & Banana', mealType: 'Breakfast', date: '2 days ago', time: '7:50 AM', calories: 340, protein: 11, fat: 6, carbs: 61, sugar: 18,
+        items: [
+          { id: 'i15', name: 'Rolled oats', qty: '80 g', confidence: 0.92, corrected: false },
+          { id: 'i16', name: 'Banana', qty: '1 medium', confidence: 0.96, corrected: false },
+          { id: 'i17', name: 'Almond milk', qty: '150 ml', confidence: 0.87, corrected: false }
+        ] }
+    ],
+    messages: [
+      { id: 1, from: 'agent', kind: 'text', text: "Good afternoon! Snap a photo of your next meal and I'll break down the nutrition — or ask me anything about your diet." }
+    ],
+    adminUsers: [
+      { id: 'u1', name: 'Maya Cohen', email: 'maya@nutriagent.ai', role: 'User', status: 'Active' },
+      { id: 'u2', name: 'Daniel Ortiz', email: 'daniel@nutriagent.ai', role: 'User', status: 'Active' },
+      { id: 'u3', name: 'Priya Shah', email: 'priya@nutriagent.ai', role: 'Admin', status: 'Active' },
+      { id: 'u4', name: 'Tom Becker', email: 'tom@nutriagent.ai', role: 'User', status: 'Suspended' },
+      { id: 'u5', name: 'Lior Adler', email: 'lior@nutriagent.ai', role: 'Admin', status: 'Active' }
+    ]
+  };
+
+  componentDidMount() {
+    const patch = {};
+    if (this.props.initialPortal) patch.portal = this.props.initialPortal;
+    if (this.props.initialViewMode) patch.viewMode = this.props.initialViewMode;
+    if (this.props.initialTheme) patch.theme = this.props.initialTheme;
+    if (Object.keys(patch).length) this.setState(patch);
+  }
+
+  // ---- navigation / shell ----
+  setPortalUser = () => this.setState({ portal: 'user' });
+  setPortalAdmin = () => this.setState({ portal: 'admin' });
+  setViewDesktop = () => this.setState({ viewMode: 'desktop' });
+  setViewMobile = () => this.setState({ viewMode: 'mobile' });
+  setThemeWhite = () => this.setState({ theme: 'white' });
+  setThemeLight = () => this.setState({ theme: 'light' });
+  setThemeMidnight = () => this.setState({ theme: 'midnight' });
+  setThemeForest = () => this.setState({ theme: 'forest' });
+  setThemeCharcoal = () => this.setState({ theme: 'charcoal' });
+  logout = () => this.setState({ stage: 'login', portal: 'user', activeTab: 'chat', loginUser: '', loginPass: '' });
+
+  setTabChat = () => this.setState({ activeTab: 'chat' });
+  setTabDashboard = () => this.setState({ activeTab: 'dashboard' });
+  setTabSummary = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ activeTab: 'summary' }); };
+  setTabMealAnalysis = () => this.setState({ activeTab: 'mealAnalysis' });
+  setTabNutrients = () => this.setState({ activeTab: 'nutrients' });
+  setTabSettings = () => this.setState({ activeTab: 'settings' });
+  setAdminTabUsers = () => this.setState({ adminTab: 'users' });
+  setAdminTabAudit = () => this.setState({ adminTab: 'audit' });
+
+  // ---- login / onboarding ----
+  setLoginUserInput = (e) => this.setState({ loginUser: e.target.value });
+  setLoginPassInput = (e) => this.setState({ loginPass: e.target.value });
+  handleLoginSubmit = (e) => { e.preventDefault(); this.setState({ stage: 'onboarding', obStep: 0 }); };
+  obNext = () => this.setState((s) => ({ obStep: Math.min(2, s.obStep + 1) }));
+  obBack = () => this.setState((s) => ({ obStep: Math.max(0, s.obStep - 1) }));
+  obFinish = () => this.setState({ stage: 'app' });
+  setGoalCaloriesInput = (e) => this.setState({ obGoalCalories: Number(e.target.value) || 0 });
+  setGoalProteinInput = (e) => this.setState({ obGoalProtein: Number(e.target.value) || 0 });
+  toggleGluten = () => this.setState((s) => ({ restrictions: { ...s.restrictions, gluten: !s.restrictions.gluten } }));
+  toggleNuts = () => this.setState((s) => ({ restrictions: { ...s.restrictions, nuts: !s.restrictions.nuts } }));
+  toggleDairy = () => this.setState((s) => ({ restrictions: { ...s.restrictions, dairy: !s.restrictions.dairy } }));
+  toggleLowSodium = () => this.setState((s) => ({ restrictions: { ...s.restrictions, lowSodium: !s.restrictions.lowSodium } }));
+  setDietBalanced = () => this.setState({ dietType: 'balanced' });
+  setDietVegetarian = () => this.setState({ dietType: 'vegetarian' });
+  setDietKeto = () => this.setState({ dietType: 'keto' });
+  setDietLowCarb = () => this.setState({ dietType: 'lowcarb' });
+  saveSettings = () => {
+    this.setState({ savedFlash: true });
+    setTimeout(() => this.setState({ savedFlash: false }), 2200);
+  };
+
+  // ---- summary ----
+  setRangeDay = () => this.setState({ summaryRange: 'day' });
+  setRangeWeek = () => this.setState({ summaryRange: 'week' });
+  setRangeMonth = () => this.setState({ summaryRange: 'month' });
+  setSummarySearchInput = (e) => this.setState({ summarySearch: e.target.value });
+
+  // ---- meal analysis ----
+  selectMeal = (id) => this.setState({ selectedMealId: id, activeTab: 'mealAnalysis' });
+  startEdit = (item) => this.setState({ editingItemId: item.id, editingDraft: item.name });
+  setEditingDraftInput = (e) => this.setState({ editingDraft: e.target.value });
+  cancelEdit = () => this.setState({ editingItemId: null, editingDraft: '' });
+  saveEdit = () => {
+    const { selectedMealId, editingItemId, editingDraft } = this.state;
+    this.setState((s) => ({
+      meals: s.meals.map((m) => m.id !== selectedMealId ? m : {
+        ...m, items: m.items.map((it) => it.id !== editingItemId ? it : { ...it, name: editingDraft.trim() || it.name, corrected: true, confidence: 1 })
+      }),
+      editingItemId: null, editingDraft: ''
+    }));
+  };
+
+  // ---- nutrients scope ----
+  setScopeMeal = () => this.setState({ nutrientsScope: 'meal' });
+  setScopeDay = () => this.setState({ nutrientsScope: 'day' });
+  setScopePeriod = () => this.setState({ nutrientsScope: 'period' });
+
+  // ---- admin ----
+  toggleUserRole = (id) => this.setState((s) => ({ adminUsers: s.adminUsers.map((u) => u.id !== id ? u : { ...u, role: u.role === 'Admin' ? 'User' : 'Admin' }) }));
+  toggleUserStatus = (id) => this.setState((s) => ({ adminUsers: s.adminUsers.map((u) => u.id !== id ? u : { ...u, status: u.status === 'Active' ? 'Suspended' : 'Active' }) }));
+  setAuditCache = () => this.setState({ auditSource: 'cache' });
+  setAuditFull = () => this.setState({ auditSource: 'full' });
+
+  // ---- chat ----
+  pushMessage(msg) {
+    this.setState((s) => ({ messages: [...s.messages, { id: s.msgSeq + 1, ...msg }], msgSeq: s.msgSeq + 1 }));
+  }
+  removeMessagesOfKind(kind) {
+    this.setState((s) => ({ messages: s.messages.filter((m) => m.kind !== kind) }));
+  }
+  setChatDraftInput = (e) => this.setState({ chatDraft: e.target.value });
+  handleComposerKeyDown = (e) => { if (e.key === 'Enter') this.handleSend(); };
+
+  handleCameraClick = () => {
+    if (this.state.chatBusy) return;
+    this.setState({ chatBusy: true });
+    this.pushMessage({ from: 'user', kind: 'image' });
+    this.pushMessage({ from: 'agent', kind: 'analyzing' });
+    setTimeout(() => {
+      const newMeal = {
+        id: 'm' + Date.now(), name: 'Apple & Peanut Butter', mealType: 'Snack', date: 'Today', time: 'Just now',
+        calories: 210, protein: 6, fat: 12, carbs: 22, satFat: 2, fiber: 3, sodium: 95,
+        items: [
+          { id: 'ni1', name: 'Apple slices', qty: '1 medium', confidence: 0.95, corrected: false },
+          { id: 'ni2', name: 'Peanut butter', qty: '1 tbsp', confidence: 0.89, corrected: false }
+        ]
+      };
+      this.removeMessagesOfKind('analyzing');
+      this.pushMessage({
+        from: 'agent', kind: 'card', mealName: newMeal.name, calories: newMeal.calories, matchPct: 92,
+        items: newMeal.items, recommendation: 'Good pick — high in fiber, low sodium',
+        macros: [
+          { label: 'Carbs', value: newMeal.carbs + 'g', pct: Math.min(100, Math.round(newMeal.carbs / 250 * 100)) + '%' },
+          { label: 'Protein', value: newMeal.protein + 'g', pct: Math.min(100, Math.round(newMeal.protein / this.state.obGoalProtein * 100)) + '%' },
+          { label: 'Fat', value: newMeal.fat + 'g', pct: Math.min(100, Math.round(newMeal.fat / 70 * 100)) + '%' },
+          { label: 'Sat. fat', value: newMeal.satFat + 'g', pct: Math.min(100, Math.round(newMeal.satFat / 20 * 100)) + '%' },
+          { label: 'Fiber', value: newMeal.fiber + 'g', pct: Math.min(100, Math.round(newMeal.fiber / 30 * 100)) + '%' },
+          { label: 'Sodium', value: newMeal.sodium + 'mg', pct: Math.min(100, Math.round(newMeal.sodium / 2000 * 100)) + '%' }
+        ]
+      });
+      this.pushMessage({ from: 'agent', kind: 'text', text: `Logged — ${newMeal.calories} kcal, ${newMeal.protein}g protein, ${newMeal.fat}g fat, ${newMeal.carbs}g carbs. It's already reflected on your Dashboard.` });
+      this.setState((s) => ({ meals: [newMeal, ...s.meals], consumedToday: s.consumedToday + newMeal.calories, chatBusy: false }));
+    }, 1400);
+  };
+
+  todaysMeals(meals) { return meals.filter((m) => m.date === 'Today'); }
+
+  quickReplyAdvice = () => {
+    if (this.state.chatBusy) return;
+    this.pushMessage({ from: 'user', kind: 'text', text: 'What should I eat now?' });
+    this.setState({ chatBusy: true });
+    this.pushMessage({ from: 'agent', kind: 'typing' });
+    setTimeout(() => {
+      const remainingCal = this.state.obGoalCalories - this.state.consumedToday;
+      const consumedProtein = this.todaysMeals(this.state.meals).reduce((a, m) => a + m.protein, 0);
+      const remainingProtein = Math.max(0, this.state.obGoalProtein - consumedProtein);
+      const pref = this.state.restrictions.gluten ? 'your gluten-free preference' : (this.state.restrictions.nuts ? 'your nut allergy' : 'your profile');
+      this.removeMessagesOfKind('typing');
+      this.pushMessage({
+        from: 'agent', kind: 'rag',
+        text: `With about ${remainingCal} kcal and ${remainingProtein}g protein left today, and given ${pref}, a grilled salmon salad with quinoa would fit well — high protein, balanced carbs, and safe against your restrictions.`,
+        sources: ['USDA FoodData Central', 'WHO Dietary Guidelines 2023']
+      });
+      this.setState({ chatBusy: false });
+    }, 1000);
+  };
+
+  quickReplyHistory = () => {
+    if (this.state.chatBusy) return;
+    this.pushMessage({ from: 'user', kind: 'text', text: 'What did I eat yesterday?' });
+    this.setState({ chatBusy: true });
+    this.pushMessage({ from: 'agent', kind: 'typing' });
+    setTimeout(() => {
+      const yesterday = this.state.meals.filter((m) => m.date === 'Yesterday');
+      const total = yesterday.reduce((a, m) => a + m.calories, 0);
+      this.removeMessagesOfKind('typing');
+      this.pushMessage({
+        from: 'agent', kind: 'sql',
+        text: `Yesterday you logged ${yesterday.length} meals totaling ${total} kcal:`,
+        rows: yesterday.map((m) => ({ label: `${m.name} (${m.mealType})`, value: m.calories + ' kcal' }))
+      });
+      this.setState({ chatBusy: false });
+    }, 900);
+  };
+
+  handleSend = () => {
+    const draft = this.state.chatDraft.trim();
+    if (!draft || this.state.chatBusy) return;
+    this.pushMessage({ from: 'user', kind: 'text', text: draft });
+    this.setState({ chatDraft: '', chatBusy: true });
+    this.pushMessage({ from: 'agent', kind: 'typing' });
+    const lower = draft.toLowerCase();
+    setTimeout(() => {
+      this.removeMessagesOfKind('typing');
+      if (lower.includes('yesterday') || lower.includes('history') || lower.includes('ate')) {
+        const yesterday = this.state.meals.filter((m) => m.date === 'Yesterday');
+        const total = yesterday.reduce((a, m) => a + m.calories, 0);
+        this.pushMessage({ from: 'agent', kind: 'sql', text: `Yesterday you logged ${yesterday.length} meals totaling ${total} kcal:`, rows: yesterday.map((m) => ({ label: `${m.name} (${m.mealType})`, value: m.calories + ' kcal' })) });
+      } else if (lower.includes('eat') || lower.includes('recommend') || lower.includes('should')) {
+        this.pushMessage({ from: 'agent', kind: 'rag', text: 'Given your remaining calorie budget and dietary profile, a lean-protein option with vegetables and whole grains would fit best right now.', sources: ['USDA FoodData Central', 'WHO Dietary Guidelines 2023'] });
+      } else {
+        this.pushMessage({ from: 'agent', kind: 'text', text: "Got it — noted. Ask me for a recommendation, or what you've eaten today, any time." });
+      }
+      this.setState({ chatBusy: false });
+    }, 900);
+  };
+
+  renderVals() {
+    const s = this.state;
+    const goalCalories = s.obGoalCalories, goalProtein = s.obGoalProtein;
+    const goalFat = 70, goalCarbs = 250, goalSugar = 50;
+
+    // messages
+    const ringPalette = { Carbs: '#4a90d9', Protein: '#6b6b6b', Fat: '#d6437e', 'Sat. fat': '#3fa15c', Fiber: '#2f9d95', Sodium: '#d98a3d' };
+    const flowerPos = {
+      Protein:    { left: 150,   top: 42,  r: 32, lx: 150,   ly: 92 },
+      'Sat. fat': { left: 243.5, top: 96,  r: 32, lx: 243.5, ly: 146 },
+      Sodium:     { left: 243.5, top: 204, r: 32, lx: 243.5, ly: 254 },
+      Fiber:      { left: 150,   top: 258, r: 32, lx: 150,   ly: 308 },
+      Fat:        { left: 56.5,  top: 204, r: 32, lx: 56.5,  ly: 254 },
+      Carbs:      { left: 56.5,  top: 96,  r: 32, lx: 56.5,  ly: 146 }
+    };
+    const messages = s.messages.map((m) => ({
+      ...m,
+      rowAlign: m.from === 'user' ? 'justify-content:flex-end' : 'justify-content:flex-start',
+      isUserText: m.from === 'user' && m.kind === 'text',
+      isUserImage: m.from === 'user' && m.kind === 'image',
+      isAgentText: m.from === 'agent' && m.kind === 'text',
+      isTyping: m.kind === 'analyzing' || m.kind === 'typing',
+      isCard: m.kind === 'card',
+      isCardRings: m.kind === 'card' && (this.props.mealCardStyle || 'rings') !== 'bars',
+      isCardBars: m.kind === 'card' && this.props.mealCardStyle === 'bars',
+      isRag: m.kind === 'rag',
+      isSql: m.kind === 'sql',
+      slotId: 'chat-img-' + m.id,
+      ringMacros: m.macros ? m.macros.map((mac) => {
+        const pctNum = parseInt(mac.pct, 10) || 0;
+        const pos = flowerPos[mac.label] || { left: 150, top: 42, r: 32, lx: 150, ly: 92 };
+        const r = pos.r, d = r * 2 + 12, circ = Math.round(2 * Math.PI * r);
+        return { ...mac, ringColor: ringPalette[mac.label] || '#6b6b6b', dashOffset: Math.round(circ * (1 - Math.min(100, pctNum) / 100)), circumference: circ, cx: pos.left, cy: pos.top, lx: pos.lx, ly: pos.ly, r, cxy: r + 6, d };
+      }) : [],
+      itemPills: m.items ? m.items.map((it) => it.name + ' · ' + it.qty) : [],
+      energyPctNum: m.calories ? Math.min(100, Math.round(m.calories / this.state.obGoalCalories * 100)) : 0,
+      energyDashOffset: m.calories ? Math.round((2 * Math.PI * 44) * (1 - Math.min(100, Math.round(m.calories / this.state.obGoalCalories * 100)) / 100)) : 0
+    }));
+
+
+    // meals / summary
+    const meals = s.meals;
+    const rangeFiltered = meals.filter((m) => {
+      if (s.summaryRange === 'day') return m.date === 'Today';
+      return true; // week / month: sample spans only a few days
+    });
+    const searchLower = s.summarySearch.trim().toLowerCase();
+    const filteredMeals = rangeFiltered.filter((m) => !searchLower || m.name.toLowerCase().includes(searchLower))
+      .map((m) => ({ ...m, slotId: 'meal-thumb-' + m.id, onSelect: () => this.selectMeal(m.id) }));
+
+    const selectedMealRaw = meals.find((m) => m.id === s.selectedMealId) || meals[0];
+    const selectedMeal = {
+      ...selectedMealRaw,
+      slotId: 'meal-photo-' + selectedMealRaw.id,
+      items: selectedMealRaw.items.map((it) => ({
+        ...it,
+        isEditing: it.id === s.editingItemId,
+        isNotEditing: it.id !== s.editingItemId,
+        confidencePct: Math.round(it.confidence * 100) + '%',
+        confidenceLabel: Math.round(it.confidence * 100) + '% sure',
+        onEdit: () => this.startEdit(it)
+      }))
+    };
+
+    // dashboard
+    const today = this.todaysMeals(meals);
+    const breakfastCals = today.filter((m) => m.mealType === 'Breakfast').reduce((a, m) => a + m.calories, 0);
+    const lunchCals = today.filter((m) => m.mealType === 'Lunch').reduce((a, m) => a + m.calories, 0);
+    const dinnerCals = today.filter((m) => m.mealType === 'Dinner').reduce((a, m) => a + m.calories, 0);
+    const maxMealBar = Math.max(breakfastCals, lunchCals, dinnerCals, 1);
+    const barH = (v) => Math.max(6, Math.round(v / maxMealBar * 100)) + 'px';
+    const snacksCals = today.filter((m) => m.mealType === 'Snack').reduce((a, m) => a + m.calories, 0);
+    const consumedPct = Math.min(100, Math.round(s.consumedToday / goalCalories * 100));
+    const circumference = 314.16;
+    const calorieDashoffset = Math.round(circumference * (1 - consumedPct / 100));
+    const dialCirc = 257.6;
+    const dialDashoffset = Math.round(dialCirc * (1 - consumedPct / 100));
+    const dialDashoffsetApple = Math.round(376.99 * (1 - consumedPct / 100));
+    const dialDashoffsetRing = Math.round(326.7 * (1 - consumedPct / 100));
+    const caloriesLeft = Math.max(0, goalCalories - s.consumedToday);
+    const exerciseCals = 320, waterCups = 5;
+    const stepsCount = 6140, stepsGoalN = 8000;
+    const stepsPct = Math.round(stepsCount / stepsGoalN * 100) + '%';
+    const weekDays = [
+      { dow: 'Sa', day: 18 }, { dow: 'Su', day: 19 }, { dow: 'Mo', day: 20 }, { dow: 'Tu', day: 21 },
+      { dow: 'We', day: 22, active: true }, { dow: 'Th', day: 23 }, { dow: 'Fr', day: 24 }
+    ].map((d) => ({ ...d, bg: d.active ? 'var(--color-accent)' : 'transparent', color: d.active ? 'var(--color-bg)' : 'var(--color-text)', weight: d.active ? 700 : 400 }));
+    const adviceCards = [
+      { kicker: 'Fiber', title: 'Fiber for the day', body: "You're 8g under target — add legumes or oats." },
+      { kicker: 'How-to', title: 'How to plate protein', body: 'Aim for a palm-sized portion at each meal.' },
+      { kicker: 'Recipe', title: 'Recipe of the day', body: 'Lemon-herb salmon with quinoa, 480 kcal.' }
+    ];
+
+    // nutrients scope
+    let scopeCalories, scopeProtein, scopeFat, scopeCarbs, scopeSugar, scopeGoalCalories, scopeGoalProtein, scopeGoalFat, scopeGoalCarbs, scopeGoalSugar;
+    if (s.nutrientsScope === 'meal') {
+      scopeCalories = selectedMealRaw.calories; scopeProtein = selectedMealRaw.protein; scopeFat = selectedMealRaw.fat; scopeCarbs = selectedMealRaw.carbs; scopeSugar = selectedMealRaw.sugar;
+      scopeGoalCalories = goalCalories; scopeGoalProtein = goalProtein; scopeGoalFat = goalFat; scopeGoalCarbs = goalCarbs; scopeGoalSugar = goalSugar;
+    } else if (s.nutrientsScope === 'period') {
+      scopeCalories = meals.reduce((a, m) => a + m.calories, 0);
+      scopeProtein = meals.reduce((a, m) => a + m.protein, 0);
+      scopeFat = meals.reduce((a, m) => a + m.fat, 0);
+      scopeCarbs = meals.reduce((a, m) => a + m.carbs, 0);
+      scopeSugar = meals.reduce((a, m) => a + m.sugar, 0);
+      scopeGoalCalories = goalCalories * 7; scopeGoalProtein = goalProtein * 7; scopeGoalFat = goalFat * 7; scopeGoalCarbs = goalCarbs * 7; scopeGoalSugar = goalSugar * 7;
+    } else {
+      scopeCalories = today.reduce((a, m) => a + m.calories, 0);
+      scopeProtein = today.reduce((a, m) => a + m.protein, 0);
+      scopeFat = today.reduce((a, m) => a + m.fat, 0);
+      scopeCarbs = today.reduce((a, m) => a + m.carbs, 0);
+      scopeSugar = today.reduce((a, m) => a + m.sugar, 0);
+      scopeGoalCalories = goalCalories; scopeGoalProtein = goalProtein; scopeGoalFat = goalFat; scopeGoalCarbs = goalCarbs; scopeGoalSugar = goalSugar;
+    }
+    const pctOf = (v, g) => Math.min(100, Math.round(v / g * 100)) + '%';
+    const proteinKcal = scopeProtein * 4, fatKcal = scopeFat * 9, carbKcal = scopeCarbs * 4;
+    const totalMacroKcal = Math.max(1, proteinKcal + fatKcal + carbKcal);
+    const p1 = Math.round(proteinKcal / totalMacroKcal * 100);
+    const p2 = Math.round(fatKcal / totalMacroKcal * 100);
+    const p3 = Math.max(0, 100 - p1 - p2);
+    const macroDonutGradient = `conic-gradient(#d6006c 0% ${p1}%, #f2a33c ${p1}% ${p1 + p2}%, #f2c94c ${p1 + p2}% 100%)`;
+    const scopeCaloriesPct = Math.min(100, Math.round(scopeCalories / scopeGoalCalories * 100));
+    const nutrientCardsCols = s.viewMode === 'desktop' ? 'repeat(4,1fr)' : 'repeat(2,1fr)';
+    const weekCalories = [1950, 2200, 1840, 2380, 1790, 2050, s.consumedToday];
+    const weeklyAvg = Math.round(weekCalories.reduce((a, v) => a + v, 0) / weekCalories.length);
+    const weeklyDiff = weeklyAvg - goalCalories;
+    const weeklyDiffLabel = (weeklyDiff >= 0 ? '+' : '') + weeklyDiff + ' kcal';
+    const maxWeek = Math.max(...weekCalories, 1);
+    const weekBars = weekCalories.map((v, i) => {
+      const h = Math.round(v / maxWeek * 110);
+      return { x: 6 + i * 39, y: 130 - h, h };
+    });
+    const weekLinePoints = weekCalories.map((v, i) => `${6 + i * 39 + 13},${130 - Math.round(v / maxWeek * 110) - 14}`).join(' ');
+    const weekDots = weekCalories.map((v, i) => ({ x: 6 + i * 39 + 13, y: 130 - Math.round(v / maxWeek * 110) - 14 }));
+
+    // audit
+    const cacheLogs = [
+      { id: 'l1', user: 'Maya Cohen', action: 'vision_agent.invoke', timestamp: '2026-07-22 09:14', ip: '82.34.12.6', isCache: true },
+      { id: 'l2', user: 'Priya Shah', action: 'auth.login', timestamp: '2026-07-22 08:55', ip: '91.10.4.201', isCache: true },
+      { id: 'l3', user: 'Daniel Ortiz', action: 'rag_agent.invoke', timestamp: '2026-07-22 08:40', ip: '74.125.19.44', isCache: true },
+      { id: 'l4', user: 'System', action: 'cache.ttl_expired', timestamp: '2026-07-22 06:02', ip: '—', isCache: true },
+      { id: 'l5', user: 'Tom Becker', action: 'auth.login_failed', timestamp: '2026-07-21 23:47', ip: '45.33.8.19', isCache: true }
+    ].map((l) => ({ ...l, isArchive: false }));
+    const archiveLogs = [
+      { id: 'l6', user: 'Lior Adler', action: 'role.change (User→Admin)', timestamp: '2026-07-18 14:22', ip: '91.10.4.9' },
+      { id: 'l7', user: 'Priya Shah', action: 'user.suspend (Tom Becker)', timestamp: '2026-07-15 11:03', ip: '91.10.4.201' },
+      { id: 'l8', user: 'Maya Cohen', action: 'text2sql_agent.invoke', timestamp: '2026-07-12 19:30', ip: '82.34.12.6' },
+      { id: 'l9', user: 'System', action: 'graphdb_agent.error (timeout)', timestamp: '2026-07-09 03:12', ip: '—' }
+    ].map((l) => ({ ...l, isCache: false, isArchive: true }));
+    const filteredAuditLogs = s.auditSource === 'cache' ? cacheLogs : [...cacheLogs.map((l) => ({ ...l, isCache: false, isArchive: true })), ...archiveLogs];
+
+    // admin users
+    const adminUsers = s.adminUsers.map((u) => ({
+      ...u, isAdmin: u.role === 'Admin', isUser: u.role === 'User', isActive: u.status === 'Active', isSuspended: u.status === 'Suspended',
+      roleButtonLabel: u.role === 'Admin' ? 'Make User' : 'Make Admin',
+      statusButtonLabel: u.status === 'Active' ? 'Suspend' : 'Reactivate',
+      onToggleRole: () => this.toggleUserRole(u.id), onToggleStatus: () => this.toggleUserStatus(u.id)
+    }));
+
+    const isDesktop = s.viewMode === 'desktop';
+    const navColor = (tab) => (s.activeTab === tab || s.adminTab === tab) ? 'var(--color-accent)' : 'var(--color-text)';
+    const navBg = (tab) => (s.activeTab === tab) ? 'var(--color-accent-100)' : 'transparent';
+    const navBgAdmin = (tab) => (s.adminTab === tab) ? 'var(--color-accent-100)' : 'transparent';
+
+    return {
+      isLogin: s.stage === 'login', isOnboarding: s.stage === 'onboarding', isApp: s.stage === 'app',
+      loginUser: s.loginUser, loginPass: s.loginPass,
+      handleLoginSubmit: this.handleLoginSubmit, setLoginUserInput: this.setLoginUserInput, setLoginPassInput: this.setLoginPassInput,
+
+      obStepNum: s.obStep + 1,
+      obProgressPct: Math.round((s.obStep + 1) / 3 * 100) + '%',
+      obStep0: s.obStep === 0, obStep1: s.obStep === 1, obStep2: s.obStep === 2,
+      obNotStep0: s.obStep !== 0, obNotStep2: s.obStep !== 2,
+      obNext: this.obNext, obBack: this.obBack, obFinish: this.obFinish,
+      obGoalCalories: s.obGoalCalories, obGoalProtein: s.obGoalProtein,
+      setGoalCaloriesInput: this.setGoalCaloriesInput, setGoalProteinInput: this.setGoalProteinInput,
+      obGluten: s.restrictions.gluten, obGlutenOff: !s.restrictions.gluten,
+      obNuts: s.restrictions.nuts, obNutsOff: !s.restrictions.nuts,
+      obDairy: s.restrictions.dairy, obDairyOff: !s.restrictions.dairy,
+      obLowSodium: s.restrictions.lowSodium, obLowSodiumOff: !s.restrictions.lowSodium,
+      toggleGluten: this.toggleGluten, toggleNuts: this.toggleNuts, toggleDairy: this.toggleDairy, toggleLowSodium: this.toggleLowSodium,
+      dietBalanced: s.dietType === 'balanced', dietVegetarian: s.dietType === 'vegetarian', dietKeto: s.dietType === 'keto', dietLowCarb: s.dietType === 'lowcarb',
+      setDietBalanced: this.setDietBalanced, setDietVegetarian: this.setDietVegetarian, setDietKeto: this.setDietKeto, setDietLowCarb: this.setDietLowCarb,
+      savedFlash: s.savedFlash, saveSettings: this.saveSettings,
+
+      isPortalUser: s.portal === 'user', isPortalAdmin: s.portal === 'admin',
+      setPortalUser: this.setPortalUser, setPortalAdmin: this.setPortalAdmin,
+      isDesktop, isMobile: !isDesktop, setViewDesktop: this.setViewDesktop, setViewMobile: this.setViewMobile,
+      themeClass: 'theme-' + s.theme,
+      themeWhite: s.theme === 'white', themeLight: s.theme === 'light', themeMidnight: s.theme === 'midnight', themeForest: s.theme === 'forest', themeCharcoal: s.theme === 'charcoal',
+      setThemeWhite: this.setThemeWhite, setThemeLight: this.setThemeLight, setThemeMidnight: this.setThemeMidnight, setThemeForest: this.setThemeForest, setThemeCharcoal: this.setThemeCharcoal,
+      logout: this.logout,
+
+      frameOuterPadding: isDesktop ? '0' : 'var(--space-6) var(--space-4)',
+      frameWidth: isDesktop ? '1180px' : '390px',
+      frameFlexDir: 'flex-direction:row',
+      frameBorder: isDesktop ? 'none' : '1px solid var(--color-divider)',
+      frameRadius: isDesktop ? '0' : 'var(--radius-lg)',
+      frameShadow: isDesktop ? 'none' : 'var(--shadow-lg)',
+      frameHeight: isDesktop ? 'calc(100vh - 50px)' : '780px',
+
+      tabChat: s.activeTab === 'chat', tabDashboard: s.activeTab === 'dashboard', tabSummary: s.activeTab === 'summary',
+      tabMealAnalysis: s.activeTab === 'mealAnalysis', tabNutrients: s.activeTab === 'nutrients', tabSettings: s.activeTab === 'settings',
+      setTabChat: this.setTabChat, setTabDashboard: this.setTabDashboard, setTabSummary: this.setTabSummary,
+      setTabMealAnalysis: this.setTabMealAnalysis, setTabNutrients: this.setTabNutrients, setTabSettings: this.setTabSettings,
+
+      navColorChat: navColor('chat'), navBgChat: navBg('chat'),
+      navColorDashboard: navColor('dashboard'), navBgDashboard: navBg('dashboard'),
+      navColorSummary: navColor('summary'), navBgSummary: navBg('summary'),
+      navColorMealAnalysis: navColor('mealAnalysis'), navBgMealAnalysis: navBg('mealAnalysis'),
+      navColorNutrients: navColor('nutrients'), navBgNutrients: navBg('nutrients'),
+      navColorSettings: navColor('settings'), navBgSettings: navBg('settings'),
+      navColorUsers: s.adminTab === 'users' ? 'var(--color-accent)' : 'var(--color-text)', navBgUsers: navBgAdmin('users'),
+      navColorAudit: s.adminTab === 'audit' ? 'var(--color-accent)' : 'var(--color-text)', navBgAudit: navBgAdmin('audit'),
+
+      messages,
+      chatDraft: s.chatDraft, setChatDraftInput: this.setChatDraftInput, handleComposerKeyDown: this.handleComposerKeyDown,
+      handleCameraClick: this.handleCameraClick, handleSend: this.handleSend,
+      quickReplyAdvice: this.quickReplyAdvice, quickReplyHistory: this.quickReplyHistory,
+
+      dashboardGridCols: isDesktop ? 'repeat(3,1fr)' : '1fr',
+      consumedToday: s.consumedToday, goalCalories,
+      calorieDashoffset,
+      breakfastCals, lunchCals, dinnerCals, snacksCals,
+      breakfastBarH: barH(breakfastCals), lunchBarH: barH(lunchCals), dinnerBarH: barH(dinnerCals),
+      stepsCount: stepsCount.toLocaleString(), stepsPct,
+      dialDashoffset, dialDashoffsetApple, dialDashoffsetRing, caloriesLeft, exerciseCals, waterCups, weekDays, adviceCards,
+
+      filteredMeals,
+      rangeDay: s.summaryRange === 'day', rangeWeek: s.summaryRange === 'week', rangeMonth: s.summaryRange === 'month',
+      setRangeDay: this.setRangeDay, setRangeWeek: this.setRangeWeek, setRangeMonth: this.setRangeMonth,
+      summarySearch: s.summarySearch, setSummarySearchInput: this.setSummarySearchInput,
+
+      selectedMeal,
+      mealAnalysisGridCols: isDesktop ? '280px 1fr' : '1fr',
+      editingDraft: s.editingDraft, setEditingDraftInput: this.setEditingDraftInput, saveEdit: this.saveEdit, cancelEdit: this.cancelEdit,
+
+      scopeMeal: s.nutrientsScope === 'meal', scopeDay: s.nutrientsScope === 'day', scopePeriod: s.nutrientsScope === 'period',
+      setScopeMeal: this.setScopeMeal, setScopeDay: this.setScopeDay, setScopePeriod: this.setScopePeriod,
+      nutrientsGridCols: isDesktop ? '1fr 260px' : '1fr',
+      scopeCalories, scopeProtein, scopeFat, scopeCarbs, scopeSugar,
+      scopeProteinPct: pctOf(scopeProtein, scopeGoalProtein), scopeFatPct: pctOf(scopeFat, scopeGoalFat),
+      scopeCarbsPct: pctOf(scopeCarbs, scopeGoalCarbs), scopeSugarPct: pctOf(scopeSugar, scopeGoalSugar),
+      macroDonutGradient,
+      scopeCaloriesPct, nutrientCardsCols, weeklyAvg, weeklyDiffLabel, weekBars, weekLinePoints, weekDots,
+      macroPctProtein: p1, macroPctFat: p2, macroPctCarbs: p3,
+
+      adminTabUsers: s.adminTab === 'users', adminTabAudit: s.adminTab === 'audit',
+      setAdminTabUsers: this.setAdminTabUsers, setAdminTabAudit: this.setAdminTabAudit,
+      adminUsers,
+      auditIsCache: s.auditSource === 'cache', auditIsFull: s.auditSource === 'full',
+      setAuditCache: this.setAuditCache, setAuditFull: this.setAuditFull,
+      filteredAuditLogs
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+# Local development override — build app images from source (Task 8.4).
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# pull_policy: build forces Compose to build (not pull) even when image: is set in the base file.
+# Confirmed in Compose spec v2+ (pull_policy: build).
+
+services:
+  vision-agent:
+    build:
+      context: .
+      dockerfile: services/vision-agent/Dockerfile
+    pull_policy: build
+
+  graphdb-agent:
+    build:
+      context: .
+      dockerfile: services/graphdb-agent/Dockerfile
+    pull_policy: build
+
+  nutrition-agent:
+    build:
+      context: .
+      dockerfile: services/nutrition-agent/Dockerfile
+    pull_policy: build
+
+  rag-agent:
+    build:
+      context: .
+      dockerfile: services/rag-agent/Dockerfile
+    pull_policy: build
+
+  text2sql-agent:
+    build:
+      context: .
+      dockerfile: services/text2sql-agent/Dockerfile
+    pull_policy: build
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
+    pull_policy: build
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    pull_policy: build
+
+  user-portal:
+    build:
+      context: .
+      dockerfile: apps/user-portal/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://127.0.0.1:3000
+    pull_policy: build
+
+  admin-portal:
+    build:
+      context: .
+      dockerfile: apps/admin-portal/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://127.0.0.1:3000
+    pull_policy: build

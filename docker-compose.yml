@@ -1,0 +1,296 @@
+# NutriAgent stack — pull pre-built images (Task 8.4). Default = full tester stack (Task 12).
+# Build from source: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# Resource tuning (Task 10): limits and light-profile env vars sized from measured
+# docker stats baselines — see docker/README.md.
+
+x-db-env: &db-env
+  DATABASE_URL: postgresql://nutriagent:nutriagent@postgres:5432/nutriagent?connection_limit=3
+
+x-app-env: &app-env
+  JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+
+x-agent-urls: &agent-urls
+  VISION_AGENT_URL: http://vision-agent:3002
+  NUTRITION_AGENT_URL: http://nutrition-agent:3003
+  RAG_AGENT_URL: http://rag-agent:3004
+  TEXT2SQL_AGENT_URL: http://text2sql-agent:3005
+  GRAPHDB_AGENT_URL: http://graphdb-agent:3006
+
+x-infra-healthcheck: &infra-healthcheck
+  interval: 2s
+  timeout: 3s
+  retries: 5
+
+x-node-xs: &node-xs
+  NODE_OPTIONS: --max-old-space-size=128
+
+x-node-sm: &node-sm
+  NODE_OPTIONS: --max-old-space-size=192
+
+x-node-md: &node-md
+  NODE_OPTIONS: --max-old-space-size=256
+
+x-node-portal: &node-portal
+  NODE_OPTIONS: --max-old-space-size=384
+
+x-limit-postgres: &limit-postgres
+  deploy:
+    resources:
+      limits:
+        cpus: "1.0"
+        memory: 512M
+
+x-limit-redis: &limit-redis
+  deploy:
+    resources:
+      limits:
+        cpus: "0.25"
+        memory: 64M
+
+x-limit-xs: &limit-xs
+  deploy:
+    resources:
+      limits:
+        cpus: "0.25"
+        memory: 128M
+
+x-limit-sm: &limit-sm
+  deploy:
+    resources:
+      limits:
+        cpus: "0.5"
+        memory: 256M
+
+x-limit-md: &limit-md
+  deploy:
+    resources:
+      limits:
+        cpus: "0.5"
+        memory: 384M
+
+x-limit-portal: &limit-portal
+  deploy:
+    resources:
+      limits:
+        cpus: "0.5"
+        memory: 384M
+
+services:
+  postgres:
+    <<: *limit-postgres
+    image: pgvector/pgvector:pg16
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - max_connections=40
+      - -c
+      - work_mem=4MB
+    environment:
+      POSTGRES_USER: nutriagent
+      POSTGRES_PASSWORD: nutriagent
+      POSTGRES_DB: nutriagent
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      <<: *infra-healthcheck
+      start_period: 5s
+      test: ["CMD-SHELL", "pg_isready -U nutriagent"]
+
+  redis:
+    <<: *limit-redis
+    image: redis:7-alpine
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    healthcheck:
+      <<: *infra-healthcheck
+      start_period: 3s
+      test: ["CMD", "redis-cli", "ping"]
+
+  vision-agent:
+    <<: *limit-sm
+    image: ${DOCKERHUB_NAMESPACE}/nutriagent-vision-agent:${IMAGE_TAG:-latest}
+    pull_policy: missing
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: [*node-sm, *db-env]
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  graphdb-agent:
+    <<: *limit-xs
+    image: ${DOCKERHUB_NAMESPACE}/nutriagent-graphdb-agent:${IMAGE_TAG:-latest}
+    pull_policy: missing
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *node-xs
+    ports:
+      - "3006:3006"
+
+  nutrition-agent:
+    <<: *limit-sm
+    image: ${DOCKERHUB_NAMESPACE}/nutriagent-nutrition-agent:${IMAGE_TAG:-latest}
+    pull_policy: missing
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: [*node-sm, *db-env]
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  rag-agent:
+    <<: *limit-md
+    image: ${DOCKERHUB_NAMESPACE}/nutriagent-rag-agent:${IMAGE_TAG:-latest}
+    pull_policy: missing
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: [*node-md, *db-env]
+    ports:
+      - "3004:3004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  text2sql-agent:
+    <<: *limit-sm
+    image: ${DOCKERHUB_NAMESPACE}/nutriagent-text2sql-agent:${IMAGE_TAG:-latest}
+    pull_policy: missing
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: [*node-md, *db-env]
+    ports:
+      - "3005:3005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  orchestrator:
+    <<: *limit-md
+    image: ${DOCKERHUB_NAMESPACE}/nutriagent-orchestrator:${IMAGE_TAG:-latest}
+    pull_policy: missing
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: [*node-md, *db-env, *agent-urls]
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vision-agent:
+        condition: service_healthy
+      nutrition-agent:
+        condition: service_healthy
+      rag-agent:
+        condition: service_healthy
+      graphdb-agent:
+        condition: service_healthy
+      text2sql-agent:
+        condition: service_healthy
+
+  api-gateway:
+    <<: *limit-md
+    image: ${DOCKERHUB_NAMESPACE}/nutriagent-api-gateway:${IMAGE_TAG:-latest}
+    pull_policy: missing
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: [*node-md, *db-env, *app-env, *agent-urls]
+      REDIS_URL: redis://redis:6379
+      ORCHESTRATOR_URL: http://orchestrator:3001
+      CORS_ORIGIN: http://localhost:3007,http://localhost:3008,http://127.0.0.1:3007,http://127.0.0.1:3008,http://localhost:8081
+    volumes:
+      - meal_images_data:/app/storage/meal-images
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+
+  user-portal:
+    <<: *limit-portal
+    image: ${DOCKERHUB_NAMESPACE}/nutriagent-user-portal:${IMAGE_TAG:-latest}
+    pull_policy: missing
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *node-portal
+      API_PROXY_TARGET: http://api-gateway:3000
+    ports:
+      - "3008:3008"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+
+  admin-portal:
+    <<: *limit-portal
+    image: ${DOCKERHUB_NAMESPACE}/nutriagent-admin-portal:${IMAGE_TAG:-latest}
+    pull_policy: missing
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *node-portal
+      NEXT_PUBLIC_API_URL: http://127.0.0.1:3000
+    ports:
+      - "3007:3007"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+
+  diagnostic-monitor:
+    image: node:20-alpine
+    profiles: ["monitor"]
+    working_dir: /app
+    volumes:
+      - ./scripts:/app/scripts:ro
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      API_URL: http://api-gateway:3000
+      ORCHESTRATOR_URL: http://orchestrator:3001
+      RAG_AGENT_URL: http://rag-agent:3004
+      TEXT2SQL_AGENT_URL: http://text2sql-agent:3005
+      VISION_AGENT_URL: http://vision-agent:3002
+      NUTRITION_AGENT_URL: http://nutrition-agent:3003
+      GRAPHDB_AGENT_URL: http://graphdb-agent:3006
+      DIAGNOSTIC_FAILURE_THRESHOLD: ${DIAGNOSTIC_FAILURE_THRESHOLD:-2}
+      DIAGNOSTIC_PORT: "3099"
+    command: ["node", "scripts/diagnostics.mjs", "--serve"]
+    ports:
+      - "3099:3099"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  meal_images_data:
