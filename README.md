@@ -4,6 +4,28 @@ AI-powered nutrition tracking app with a multi-agent architecture: **LangGraph**
 
 **For deep technical detail on every feature** (image storage, Text2SQL security, RAG pipeline, i18n, etc.), see **[docs/TASKS.md](docs/TASKS.md)**. Agent standing rules for Cursor / Antigravity: **[AGENTS.md](AGENTS.md)**. This README only covers what you need to get running and find your way around.
 
+## Run It
+
+Only prerequisite: Docker Desktop (or Docker Engine + Compose). No Node/pnpm install needed for this path.
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+Wait for the containers to become healthy (`docker compose ps`), then open:
+
+| App | URL | Login |
+|---|---|---|
+| User Portal | http://localhost:3008 | `user@nutriagent.ai` / `user123` |
+| Admin Portal | http://localhost:3007 | `admin@nutriagent.ai` / `admin123` |
+
+No `OPENROUTER_API_KEY` set → the app runs in **mock mode** (sample vision/chat/RAG data, no external calls, nothing to pay for). To use real AI, add a free key from [openrouter.ai/keys](https://openrouter.ai/keys) to `OPENROUTER_API_KEY` in `.env`, then `docker compose restart`.
+
+Stop everything: `docker compose down`.
+
+Need the tester/grader flow (pre-built Docker Hub images), or want to run services individually with `pnpm` instead of Docker? See **Quick Start** and **Local Node dev** below.
+
 ## Architecture
 
 Full Mermaid graphs (all three paths + sequences): **[docs/architecture/architecture-graph.md](docs/architecture/architecture-graph.md)**.

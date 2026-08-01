@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { prisma } from "@nutriagent/db";
 import { UserProfileData, openRouterRerank } from "@nutriagent/shared";
-import { runRagPipeline } from "./pipeline/ragPipeline.js";
+import { buildTimedOutRagResponse, runRagPipeline } from "./pipeline/ragPipeline.js";
 import { hybridSearch, MATCH_SCORE_THRESHOLD } from "./search/hybridSearch.js";
 import { createOpenRouterEmbedder } from "./embedding/embedText.js";
 import { extractSearchKeywords } from "./pipeline/extractKeywords.js";
 import { hitsToContext } from "./pipeline/generateAnswer.js";
 import { getCachedLlmSettings } from "@nutriagent/db";
+import { PipelineTimeoutError } from "./pipeline/pipelineTimeout.js";
 
 export const ragRouter = Router();
 
@@ -128,6 +129,15 @@ ragRouter.post("/query", async (req, res) => {
 
     res.json(result);
   } catch (err) {
+    if (err instanceof PipelineTimeoutError) {
+      // Wall-clock cap tripped (LLM + search + scrape took too long) — degrade to the
+      // same weak-match disclaimer used for a low-confidence hybrid-search result,
+      // instead of surfacing a raw 500 to the client.
+      console.warn("RAG /query exceeded pipeline timeout, returning weak-match disclaimer:", err);
+      res.json(buildTimedOutRagResponse());
+      return;
+    }
+
     console.error("RAG /query failed:", err);
     res.status(500).json({ error: err instanceof Error ? err.message : "RAG query failed" });
   }

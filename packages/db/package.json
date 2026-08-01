@@ -5,12 +5,12 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "generate": "prisma generate",
-    "migrate": "prisma migrate dev",
-    "migrate:deploy": "prisma migrate deploy",
-    "seed": "tsx prisma/seed.ts",
-    "seed:demo": "tsx scripts/seedSyntheticMonth.ts",
-    "backfill:daily-steps": "tsx scripts/backfillDailySteps.ts",
+    "generate": "node scripts/withRootEnv.mjs prisma generate",
+    "migrate": "node scripts/withRootEnv.mjs prisma migrate dev",
+    "migrate:deploy": "node scripts/withRootEnv.mjs prisma migrate deploy",
+    "seed": "node scripts/withRootEnv.mjs tsx prisma/seed.ts",
+    "seed:demo": "node scripts/withRootEnv.mjs tsx scripts/seedSyntheticMonth.ts",
+    "backfill:daily-steps": "node scripts/withRootEnv.mjs tsx scripts/backfillDailySteps.ts",
     "test:scripts": "node --import tsx --test scripts/**/*.test.ts",
     "build": "tsc",
     "dev": "tsc --watch"
@@ -22,7 +22,7 @@
     "dotenv": "^16.4.7"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "node scripts/withRootEnv.mjs tsx prisma/seed.ts"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

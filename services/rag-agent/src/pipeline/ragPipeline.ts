@@ -1,6 +1,6 @@
 import { prisma } from "@nutriagent/db";
 import { getLlmSettings } from "@nutriagent/db";
-import { MAX_FALLBACK_ROUNDS } from "../config/ragConstants.js";
+import { MAX_FALLBACK_ROUNDS, WEAK_MATCH_DISCLAIMER } from "../config/ragConstants.js";
 import { createOpenRouterEmbedder, type EmbedFn } from "../embedding/embedText.js";
 import { ingestArticle } from "../ingest/ingestDocument.js";
 import { searchTrustedSources, type SearchResultLink } from "../fallback/trustedSearch.js";
@@ -34,6 +34,24 @@ export interface RagQueryResponse {
   context: string[];
   keywords: string;
   fallbackRounds: number;
+}
+
+/**
+ * Degraded response for when the pipeline wall-clock cap (RAG_PIPELINE_TIMEOUT_MS)
+ * trips before a real answer is produced. Mirrors the shape used elsewhere for a
+ * low-confidence/weak-match hybrid-search result, so callers (and the client UI)
+ * see the same "could not fully verify" disclaimer instead of a raw HTTP 500.
+ */
+export function buildTimedOutRagResponse(): RagQueryResponse {
+  return {
+    answer: WEAK_MATCH_DISCLAIMER,
+    matchScore: 0,
+    sources: [],
+    usedWebFallback: false,
+    context: [],
+    keywords: "",
+    fallbackRounds: 0,
+  };
 }
 
 export interface RagPipelineOptions {

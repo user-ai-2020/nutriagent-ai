@@ -8,13 +8,16 @@ export class PipelineTimeoutError extends Error {
 }
 
 /** Wall-clock cap for an entire /query pipeline run (spec 4.4 — avoids hung external fetches). */
-export async function withPipelineTimeout<T>(promise: Promise<T>): Promise<T> {
+export async function withPipelineTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs = RAG_PIPELINE_TIMEOUT_MS
+): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       promise,
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new PipelineTimeoutError()), RAG_PIPELINE_TIMEOUT_MS);
+        timer = setTimeout(() => reject(new PipelineTimeoutError(timeoutMs)), timeoutMs);
       }),
     ]);
   } finally {

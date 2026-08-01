@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { MATCH_SCORE_THRESHOLD } from "../search/hybridSearch.js";
-import { passesMatchGate, runRagPipeline } from "./ragPipeline.js";
+import { buildTimedOutRagResponse, passesMatchGate, runRagPipeline } from "./ragPipeline.js";
 import type { HybridSearchHit } from "../search/hybridSearch.js";
 import { RAG_EMBEDDING_DIMENSIONS } from "@nutriagent/shared";
 import { MAX_FALLBACK_ROUNDS, WEAK_MATCH_DISCLAIMER } from "../config/ragConstants.js";
@@ -159,5 +159,21 @@ describe("runRagPipeline", () => {
     assert.equal(searchCalls, 2);
     assert.equal(result.fallbackRounds, 2);
     assert.match(result.answer, /לא נמצא מקור/);
+  });
+});
+
+describe("buildTimedOutRagResponse", () => {
+  it("returns the weak-match disclaimer with empty/zeroed fields, not a raw error shape", () => {
+    const result = buildTimedOutRagResponse();
+
+    assert.equal(result.answer, WEAK_MATCH_DISCLAIMER);
+    assert.equal(result.matchScore, 0);
+    assert.equal(result.usedWebFallback, false);
+    assert.equal(result.fallbackRounds, 0);
+    assert.deepEqual(result.sources, []);
+    assert.deepEqual(result.context, []);
+    // Same RagQueryResponse shape the client already knows how to render for a
+    // weak match — no separate "error" field the UI would need special-casing for.
+    assert.ok(!("error" in result));
   });
 });

@@ -104,8 +104,8 @@ async function main() {
     });
     if (!existing) {
       await prisma.$executeRaw`
-        INSERT INTO "knowledge_documents" ("title", "content", "category")
-        VALUES (${doc.title}, ${doc.content}, ${doc.category})
+        INSERT INTO "knowledge_documents" ("title", "content", "category", "updated_at")
+        VALUES (${doc.title}, ${doc.content}, ${doc.category}, NOW())
       `;
     }
   }
