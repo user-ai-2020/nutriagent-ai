@@ -57,10 +57,12 @@ export interface NutritionData {
   sugar: number;
 }
 
+export type CitationSource = string | { title: string; url: string };
+
 export interface MealAnalysisResult {
   items: Array<VisionFoodItem & { nutrition: NutritionData }>;
   totalNutrition: NutritionData;
-  sources: string[];
+  sources: CitationSource[];
   summary: string;
 }
 
@@ -122,7 +124,7 @@ export interface MultiModelMealAnalysis {
   summary: string;
   /** Short natural-language read of what vision detected in the photo. */
   mealDescription?: string;
-  sources: string[];
+  sources: CitationSource[];
   panels: ModelMealPanel[];
   rerankerScores: RerankerFoodScore[];
   rerankModel?: string;
@@ -145,6 +147,7 @@ export type ChatIntent =
   | "nutrition_advice"
   | "restaurant_recommendation"
   | "history_query"
+  | "question"
   | "general_chat";
 
 export interface OrchestratorRequest {
@@ -166,7 +169,7 @@ export interface OrchestratorResponse {
   multiModelMealAnalysis?: MultiModelMealAnalysis;
   mealId?: number;
   nutritionHistory?: NutritionHistoryResult;
-  sources: string[];
+  sources: CitationSource[];
   agentPath: string[];
 }
 

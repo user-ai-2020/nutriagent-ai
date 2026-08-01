@@ -6,7 +6,7 @@ import { hybridSearch, MATCH_SCORE_THRESHOLD } from "./search/hybridSearch.js";
 import { createOpenRouterEmbedder } from "./embedding/embedText.js";
 import { extractSearchKeywords } from "./pipeline/extractKeywords.js";
 import { hitsToContext } from "./pipeline/generateAnswer.js";
-import { getLlmSettings } from "@nutriagent/db";
+import { getCachedLlmSettings } from "@nutriagent/db";
 
 export const ragRouter = Router();
 
@@ -162,14 +162,14 @@ ragRouter.post("/retrieve", async (req, res) => {
         });
         res.json({
           documents: result.context,
-          sources: result.sources.map((s) => s.title),
+          sources: result.sources.map((s) => ({ title: s.title, url: s.url })),
           context: result.context,
           matchScore: result.matchScore,
         });
         return;
       }
 
-      const settings = await getLlmSettings();
+      const settings = await getCachedLlmSettings();
       const keywords = await extractSearchKeywords(query, settings.openRouterApiKey, settings.ragModel);
       const [queryEmbedding] = await createOpenRouterEmbedder(settings.openRouterApiKey)([query]);
       const hits = await hybridSearch(prisma, {
@@ -181,7 +181,7 @@ ragRouter.post("/retrieve", async (req, res) => {
       if (hits.length > 0) {
         res.json({
           documents: hits,
-          sources: hits.map((h) => h.title),
+          sources: hits.map((h) => ({ title: h.title, url: h.sourceUrl })),
           context: hitsToContext(hits),
           matchScore: hits[0]?.matchScore ?? 0,
           matchGate: MATCH_SCORE_THRESHOLD,

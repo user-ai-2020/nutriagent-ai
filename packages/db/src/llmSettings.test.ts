@@ -26,7 +26,7 @@ describe("resolveOpenRouterApiKey via getLlmSettings", () => {
         ragModel: "openai/gpt-4o-mini",
         text2sqlModel: "openai/gpt-4o-mini",
         graphdbModel: "openai/gpt-4o-mini",
-      }) as never;
+      }) as any;
 
     try {
       const settings = await getLlmSettings();

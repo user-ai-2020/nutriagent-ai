@@ -1,22 +1,59 @@
 # NutriAgent AI
 
-AI-powered nutrition tracking app with a multi-agent architecture (vision, nutrition, RAG, Text2SQL, and a clinical knowledge graph).
+AI-powered nutrition tracking app with a multi-agent architecture: **LangGraph** orchestrates Vision, Nutrition, RAG, Text2SQL, and a clinical GraphDB agent.
 
-**For deep technical detail on every feature** (image storage, Text2SQL security, RAG pipeline, Hebrew/i18n, etc.), see **[docs/TASKS.md](docs/TASKS.md)**. This README only covers what you need to get running and find your way around.
+**For deep technical detail on every feature** (image storage, Text2SQL security, RAG pipeline, i18n, etc.), see **[docs/TASKS.md](docs/TASKS.md)**. Agent standing rules for Cursor / Antigravity: **[AGENTS.md](AGENTS.md)**. This README only covers what you need to get running and find your way around.
 
 ## Architecture
 
+Full Mermaid graphs (all three paths + sequences): **[docs/architecture/architecture-graph.md](docs/architecture/architecture-graph.md)**.
+
+```mermaid
+flowchart TB
+  START([Chat: text and/or photo]) --> GW[API Gateway :3000]
+  GW --> CI{LangGraph classifyIntent :3001}
+
+  CI -->|image| PA
+  CI -->|history keywords| PB
+  CI -->|advice / default| PC
+
+  subgraph PA["Path A — meal_analysis"]
+    A1[RAG /retrieve] --> A2[Vision /analyze]
+    A2 --> A3[Nutrition /calculate]
+    A3 --> A4[GraphDB /recommend]
+    A4 --> A5[saveMeal]
+  end
+
+  subgraph PB["Path B — history_query"]
+    B1[Text2SQL /query]
+  end
+
+  subgraph PC["Path C — advice / chat"]
+    C1[RAG /retrieve] --> C2[GraphDB /recommend]
+    C2 --> C3[Nutrition /advise]
+  end
 ```
-Mobile (Expo) ────────┐
-Mobile (Expo) ────────┐
-User Portal (Next.js) ├── API Gateway (JWT) ── Orchestrator ──┬── Vision Agent
-Admin Portal (Next.js)┘                                       ├── Nutrition Agent
-                                                                ├── RAG Agent + Reranker
-                                                                ├── Text2SQL Agent
-                                                                └── GraphDB Agent
-                                        │
-                              PostgreSQL + pgVector + Redis
-```
+
+### How a request flows
+
+Chat (text or photo) → `POST /api/chat/message` on the **API Gateway** → `POST /process` on the **Orchestrator**. The orchestrator runs a compiled **LangGraph** `StateGraph` (`services/orchestrator/src/graph.ts`), invoked from `services/orchestrator/src/index.ts`.
+
+| Intent | Typical trigger | Graph path |
+|---|---|---|
+| `meal_analysis` | Image attached | RAG `/retrieve` → Vision `/analyze` → Nutrition `/calculate` → GraphDB `/recommend` → save meal |
+| `history_query` | “calories today”, “מה אכלתי”, week/history | Text2SQL `/query` |
+| `nutrition_advice` / `restaurant_recommendation` / `general_chat` | Keywords / default | RAG `/retrieve` → GraphDB `/recommend` → Nutrition `/advise` |
+
+### Where each piece lives
+
+| Piece | Location | Notes |
+|---|---|---|
+| **LangGraph** | `services/orchestrator` — `@langchain/langgraph`, `src/graph.ts` | Workflow / routing only; not a database |
+| **GraphDB agent** | `services/graphdb-agent` — `POST /recommend` | In-memory clinical map (`CLINICAL_GRAPH`: diabetes, peanut allergy, hypertension) — PoC, not Neo4j |
+| **Text2SQL** | `services/text2sql-agent` | Templates + LLM SQL → validate → scoped SELECT |
+| **RAG** | `services/rag-agent` | Chat uses fast `/retrieve` (hybrid KB); full `/query` web-fallback is separate |
+| **Vision / Nutrition** | `services/vision-agent`, `services/nutrition-agent` | Meal scan ensemble + macros / advice |
+| **Shared cookie SSO** | `@nutriagent/shared/authCookie` | `nutriagent_token` shared across portals on the same hostname |
 
 ## Quick Start (Docker — testers & graders)
 
@@ -96,37 +133,41 @@ Developer note: if `db:migrate` can't find `DATABASE_URL`, see [docs/TASKS.md](d
 
 ```
 apps/        mobile (Expo) · user-portal (Next.js) · admin-portal (Next.js)
-services/    api-gateway · orchestrator · vision-agent · nutrition-agent
+services/    api-gateway · orchestrator (LangGraph) · vision-agent · nutrition-agent
              rag-agent · text2sql-agent · graphdb-agent
-packages/    db (Prisma) · shared (types, auth, locales, storage)
+packages/    db (Prisma) · shared (types, auth cookie, locales he/en/ru, storage)
 docs/        specs, ERD, and the full technical reference (TASKS.md)
 infra/       GCP Terraform (Cloud Run, Cloud SQL, Memorystore)
+AGENTS.md    standing instructions for AI coding agents (Cursor + Antigravity)
+.agents/     Antigravity workspace skills (live-verify playbook)
 ```
 
 | App/Service | Port |
 |---|---|
 | API Gateway | 3000 |
-| Orchestrator | 3001 |
+| Orchestrator (LangGraph) | 3001 |
 | Vision Agent | 3002 |
 | Nutrition Agent | 3003 |
 | RAG Agent | 3004 |
 | Text2SQL Agent | 3005 |
-| GraphDB Agent | 3006 |
+| GraphDB Agent (clinical PoC) | 3006 |
 | Admin Portal | 3007 |
 | User Portal | 3008 |
 | Mobile (Expo) | 8081 |
 
 ## What it does
 
-- **Meal scanning** — photo → 3 vision models + reranker consensus → nutrition calc → saved meal
-- **Smart chat** — ask about nutrition, meals, or history; routed to the right agent automatically
+- **Meal scanning** — photo → LangGraph meal path → 3 vision models + reranker → nutrition calc → GraphDB tips → saved meal (placeholder / no-food detections are not persisted as real meals)
+- **Smart chat** — LangGraph routes to Text2SQL (history), Nutrition advise + GraphDB (advice), or meal analysis when an image is attached
 - **Dashboard** — calorie budget, meal split, steps
-- **Bilingual (Hebrew/English)** — AI responses and the UI itself both switch language, with proper RTL layout on all three apps
-- **Admin panel** — user management, audit log
+- **i18n (Hebrew / English / Russian)** — UI + AI replies; language only via Settings; RTL for Hebrew; default response language `en`
+- **Dark UI** — single dark theme across portals/mobile
+- **Admin panel** — separate app on **3007**; shared login cookie with user portal when hostname matches
+- **Agent tooling** — Cursor and Google Antigravity both work on this repo (`AGENTS.md` + `.agents/skills/`); neither replaces the other
 
 ## AI Configuration
 
-**Testers:** a real `OPENROUTER_API_KEY` is required (see Quick Start above) — you evaluate the live pipeline: vision ensemble, reranker, RAG retrieval/fallback, and LLM-backed chat.
+**Testers:** a real `OPENROUTER_API_KEY` is required (see Quick Start above) — you evaluate the live pipeline: LangGraph orchestration, vision ensemble, reranker, RAG retrieval, Text2SQL history, GraphDB clinical tips, and LLM-backed chat.
 
 **Developers:** leave `OPENROUTER_API_KEY` empty in @`.env.example` for mock mode with sample data during local work. Model choices, RAG tuning, and Text2SQL security guarantees are in [docs/TASKS.md](docs/TASKS.md).
 

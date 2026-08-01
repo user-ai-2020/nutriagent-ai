@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { UserProfileData, VisionFoodItem, openRouterChat, parseQuantityGrams, resolveResponseLanguage, responseLanguageInstruction, CITATION_SOURCES } from "@nutriagent/shared";
-import { getLlmSettings } from "@nutriagent/db";
+import { getCachedLlmSettings } from "@nutriagent/db";
 import { findNutrition } from "./nutrition-db";
 import { isSuspiciousMealTotal, isSuspiciousNutrition, kcalPer100g } from "./nutrition-sanity";
 
@@ -52,11 +52,18 @@ nutritionRouter.post("/calculate", async (req, res) => {
     { calories: 0, protein: 0, fat: 0, carbs: 0, sugar: 0 }
   );
 
+  const isHe = profile?.preferredLanguage === "he";
+  const isRu = profile?.preferredLanguage === "ru";
+  
   const warnings: string[] = [];
   for (const item of enriched) {
     if (item.nutritionMeta.suspicious) {
       warnings.push(
-        `Suspicious calorie density for ${item.foodType} (${item.nutritionMeta.kcalPer100g} kcal/100g at ${item.nutritionMeta.grams}g) — verify portion or food match`
+        isHe
+          ? `צפיפות קלוריות חשודה עבור ${item.foodType} (${item.nutritionMeta.kcalPer100g} קק"ל/100 גרם ב-${item.nutritionMeta.grams} גרם) — בדוק את גודל המנה או ההתאמה`
+          : isRu
+          ? `Подозрительная плотность калорий для ${item.foodType} (${item.nutritionMeta.kcalPer100g} ккал/100г при ${item.nutritionMeta.grams}г) — проверьте порцию или соответствие продукта`
+          : `Suspicious calorie density for ${item.foodType} (${item.nutritionMeta.kcalPer100g} kcal/100g at ${item.nutritionMeta.grams}g) — verify portion or food match`
       );
     }
   }
@@ -64,25 +71,45 @@ nutritionRouter.post("/calculate", async (req, res) => {
   const totalGrams = enriched.reduce((sum, item) => sum + item.nutritionMeta.grams, 0);
   if (isSuspiciousMealTotal(totalNutrition.calories, totalGrams, enriched.length)) {
     warnings.push(
-      `Suspicious meal total (${totalNutrition.calories} kcal for ${enriched.length} items, ${Math.round(totalGrams)}g) — dish may be split into components instead of one entry`
+      isHe
+        ? `סך ארוחה חשוד (${totalNutrition.calories} קק"ל עבור ${enriched.length} פריטים, ${Math.round(totalGrams)} גרם) — ייתכן שהמנה פוצלה למרכיבים במקום פריט אחד`
+        : isRu
+        ? `Подозрительное количество калорий (${totalNutrition.calories} ккал для ${enriched.length} продуктов, ${Math.round(totalGrams)}г) — возможно, блюдо было разделено на ингредиенты вместо одной записи`
+        : `Suspicious meal total (${totalNutrition.calories} kcal for ${enriched.length} items, ${Math.round(totalGrams)}g) — dish may be split into components instead of one entry`
     );
   }
   if (profile?.allergies?.length) {
     for (const item of enriched) {
       for (const allergy of profile.allergies) {
         if (item.foodType.toLowerCase().includes(allergy.toLowerCase())) {
-          warnings.push(`Warning: ${item.foodType} may contain ${allergy}`);
+          warnings.push(
+            isHe
+              ? `אזהרה: ${item.foodType} עשוי להכיל ${allergy}`
+              : isRu
+              ? `Внимание: ${item.foodType} может содержать ${allergy}`
+              : `Warning: ${item.foodType} may contain ${allergy}`
+          );
         }
       }
     }
   }
 
   if (profile?.healthRestrictions?.includes("diabetes") && totalNutrition.sugar > 15) {
-    warnings.push("High sugar content - consider portion adjustment for diabetes management");
+    warnings.push(
+      isHe
+        ? "תכולת סוכר גבוהה - שקול להתאים את גודל המנה לניהול סוכרת"
+        : isRu
+        ? "Высокое содержание сахара - подумайте о корректировке порции для контроля диабета"
+        : "High sugar content - consider portion adjustment for diabetes management"
+    );
   }
 
   const summary = [
-    `Meal total: ${totalNutrition.calories} kcal | Protein ${Math.round(totalNutrition.protein)}g | Carbs ${Math.round(totalNutrition.carbs)}g | Fat ${Math.round(totalNutrition.fat)}g`,
+    isHe
+      ? `סה"כ לארוחה: ${totalNutrition.calories} קק"ל | חלבון ${Math.round(totalNutrition.protein)}g | פחמימות ${Math.round(totalNutrition.carbs)}g | שומן ${Math.round(totalNutrition.fat)}g`
+      : isRu
+      ? `Итого: ${totalNutrition.calories} ккал | Белки ${Math.round(totalNutrition.protein)}г | Углеводы ${Math.round(totalNutrition.carbs)}г | Жиры ${Math.round(totalNutrition.fat)}г`
+      : `Meal total: ${totalNutrition.calories} kcal | Protein ${Math.round(totalNutrition.protein)}g | Carbs ${Math.round(totalNutrition.carbs)}g | Fat ${Math.round(totalNutrition.fat)}g`,
     ...warnings,
   ].join("\n");
 
@@ -108,7 +135,7 @@ nutritionRouter.post("/advise", async (req, res) => {
   const allergies = profile?.allergies?.join(", ") || "none";
 
   try {
-    const llm = await getLlmSettings();
+    const llm = await getCachedLlmSettings();
     const apiKey = llm.openRouterApiKey || process.env.OPENROUTER_API_KEY;
     if (apiKey) {
       const prompt = [

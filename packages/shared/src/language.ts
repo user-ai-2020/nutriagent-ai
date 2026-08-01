@@ -63,7 +63,8 @@ export function responseLanguageInstruction(lang: ResponseLanguage): string {
     return (
       "CRITICAL LANGUAGE RULE: You MUST respond ONLY in Hebrew (עברית). " +
       "Do not mix languages, regardless of the source content language. " +
-      "ענה תמיד בעברית תקינה בלבד, גם אם המקורות/הקונטקסט באנגלית או רוסית. " +
+      "YOU MUST TRANSLATE all meal types and food names into Hebrew. " +
+      "ענה תמיד בעברית תקינה בלבד, גם אם המקורות/הקונטקסט באנגלית, רוסית או כל שפה אחרת. " +
       "תרגם מונחים תזונתיים/רפואיים לעברית מקובלת, ושמור שמות מדעיים/מספרים כפי שהם."
     );
   }
@@ -71,7 +72,8 @@ export function responseLanguageInstruction(lang: ResponseLanguage): string {
     return (
       "CRITICAL LANGUAGE RULE: You MUST respond ONLY in Russian (русский язык). " +
       "Do not mix languages, regardless of the source content language. " +
-      "Всегда отвечай только на русском языке, даже если источники на английском или иврите. " +
+      "YOU MUST TRANSLATE all meal types and food names into Russian. " +
+      "Всегда отвечай только на русском языке, даже если источники на английском, иврите или любом другом языке. " +
       "Переводи термины питания/медицины на русский; числа и научные названия оставляй как есть."
     );
   }
@@ -79,6 +81,6 @@ export function responseLanguageInstruction(lang: ResponseLanguage): string {
     "CRITICAL LANGUAGE RULE: You MUST respond ONLY in English. " +
     "Do not mix languages, regardless of the source content language. " +
     "Always respond in clear English only. " +
-    "If sources are in Hebrew or Russian, translate relevant terms for the user while keeping numbers and scientific names as written."
+    "If sources are in Hebrew, Russian, Bulgarian, or any other language, YOU MUST TRANSLATE all meal types and food names into English."
   );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { apiBaseUrl, api } from "@/lib/api";
 import { CheckIcon, CloseIcon, PencilIcon } from "@/components/icons";
+import { useMeal, useEditMealItem } from "@/hooks/queries";
 
 interface Item {
   itemId: number;
@@ -24,44 +25,46 @@ interface Meal {
 
 export default function MealAnalysisPage() {
   const { t } = useTranslation();
-  const [meal, setMeal] = useState<Meal | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [selectedMealId, setSelectedMealId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const id = localStorage.getItem("selectedMealId");
+    if (id) {
+      setSelectedMealId(Number(id));
+    } else {
+      api<Meal[]>("/api/meals").then(meals => {
+        if (meals[0]) {
+          localStorage.setItem("selectedMealId", String(meals[0].mealId));
+          setSelectedMealId(meals[0].mealId);
+        } else {
+          setSelectedMealId(0);
+        }
+      }).catch(() => setSelectedMealId(0));
+    }
+  }, []);
+
+  const { data: meal, isFetching } = useMeal(selectedMealId && selectedMealId > 0 ? selectedMealId : null);
+  const editMutation = useEditMealItem(selectedMealId || 0);
+
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draftName, setDraftName] = useState("");
   const [corrected, setCorrected] = useState<number[]>([]);
   const [titleExpanded, setTitleExpanded] = useState(false);
 
-  const load = useCallback(async () => {
-    let id = localStorage.getItem("selectedMealId");
-    if (!id) {
-      const meals = await api<Meal[]>("/api/meals");
-      if (!meals[0]) {
-        setLoaded(true);
-        return;
+  function saveEdit(item: Item) {
+    if (!meal || !selectedMealId) return;
+    editMutation.mutate(
+      { itemId: item.itemId, foodType: draftName.trim() || item.foodType },
+      {
+        onSuccess: () => {
+          setCorrected((prev) => [...new Set([...prev, item.itemId])]);
+          setEditingId(null);
+        }
       }
-      id = String(meals[0].mealId);
-      localStorage.setItem("selectedMealId", id);
-    }
-    setMeal(await api<Meal>(`/api/meals/${id}`));
-    setLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    load().catch(() => setLoaded(true));
-  }, [load]);
-
-  async function saveEdit(item: Item) {
-    if (!meal) return;
-    const updated = await api<Meal>(`/api/meals/${meal.mealId}/items/${item.itemId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ foodType: draftName.trim() || item.foodType }),
-    });
-    setMeal(updated);
-    setCorrected((prev) => [...new Set([...prev, item.itemId])]);
-    setEditingId(null);
+    );
   }
 
-  if (!loaded) return <div style={{ padding: "var(--space-8)", opacity: 0.6 }}>{t("common.loading")}</div>;
+  if (selectedMealId === null || isFetching) return <div style={{ padding: "var(--space-8)", opacity: 0.6 }}>{t("common.loading")}</div>;
 
   if (!meal) {
     return (
@@ -78,7 +81,7 @@ export default function MealAnalysisPage() {
       ? meal.imageUrl
       : `${apiBaseUrl()}${meal.imageUrl}`
     : null;
-  const name = meal.items.map((i) => i.foodType).join(", ") || t("mealAnalysis.loggedMeal");
+  const name = meal.items.map((i: any) => i.foodType).join(", ") || t("mealAnalysis.loggedMeal");
   const titleLong = name.length > 56 || meal.items.length > 2;
 
   return (
@@ -127,7 +130,7 @@ export default function MealAnalysisPage() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-            {meal.items.map((item) => {
+            {meal.items.map((item: any) => {
               const matchPct = Math.round((item.visionConfidence ?? 0) * 100);
               return (
                 <div

@@ -5,6 +5,7 @@ import {
   parseGoogleCseResponse,
   resetDdgFallbackWarningForTests,
   searchTrustedSources,
+  isUSDAQuery,
 } from "./trustedSearch.js";
 import { parseDdgHtmlResults } from "./trustedSearchFallback.js";
 
@@ -192,5 +193,28 @@ describe("searchTrustedSources — DDG fallback when Google not configured", () 
     });
 
     assert.deepEqual(links, []);
+  });
+});
+
+describe("isUSDAQuery routing check", () => {
+  it("routes 'how many calories does an apple have' to USDA", () => {
+    assert.equal(isUSDAQuery("how many calories does an apple have"), true);
+  });
+
+  it("routes 'apple nutrition facts' to USDA", () => {
+    assert.equal(isUSDAQuery("apple nutrition facts"), true);
+  });
+
+  it("routes 'protein content of chicken breast' to USDA", () => {
+    assert.equal(isUSDAQuery("protein content of chicken breast"), true);
+  });
+
+  it("routes 'what's in a banana' to USDA", () => {
+    assert.equal(isUSDAQuery("what's in a banana"), true);
+  });
+
+  it("routes general health questions to DDG/Google", () => {
+    assert.equal(isUSDAQuery("is keto safe for diabetics"), false);
+    assert.equal(isUSDAQuery("how to lower blood pressure"), false);
   });
 });

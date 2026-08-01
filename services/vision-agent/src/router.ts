@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getLlmSettings } from "@nutriagent/db";
+import { getCachedLlmSettings } from "@nutriagent/db";
 import {
   POC_VISION_MODELS,
   VisionAnalyzeResponse,
@@ -101,16 +101,26 @@ visionRouter.post("/analyze", async (req, res) => {
 
   let modelResults: VisionModelResult[];
 
-  const llm = await getLlmSettings();
+  const llm = await getCachedLlmSettings();
   const apiKey = llm.openRouterApiKey || process.env.OPENROUTER_API_KEY;
 
   if (imageBase64) {
     if (apiKey) {
-      modelResults = await Promise.all(
-        POC_VISION_MODELS.map((m) =>
-          analyzeWithModel(m.id, m.label, apiKey, imageBase64, imageMime)
-        )
-      );
+      try {
+        modelResults = await Promise.all(
+          POC_VISION_MODELS.map((m) =>
+            analyzeWithModel(m.id, m.label, apiKey, imageBase64, imageMime)
+          )
+        );
+        // If ALL models returned errors with no items, fall back to mock
+        if (modelResults.every((r) => r.items.length === 0 && r.error)) {
+          console.warn("All vision models failed, using mock fallback");
+          modelResults = mockModelResults(message);
+        }
+      } catch (err) {
+        console.warn("Vision analysis failed, using mock fallback:", err);
+        modelResults = mockModelResults(message);
+      }
     } else {
       modelResults = mockModelResults(message);
     }

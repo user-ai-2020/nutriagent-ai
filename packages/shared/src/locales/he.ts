@@ -58,6 +58,7 @@ export const heTranslations = {
     analyzeMeal: "נתח את הארוחה הזו",
     quickReplyEatNow: "מה כדאי לי לאכול עכשיו?",
     quickReplyYesterday: "מה אכלתי אתמול?",
+    newChat: "שיחה חדשה",
     emptyGreeting:
       "צהריים טובים! צלמו את הארוחה הבאה ואפרק את התזונה — או שאלו כל דבר על התפריט שלכם.",
     photoReady: "התמונה מוכנה",

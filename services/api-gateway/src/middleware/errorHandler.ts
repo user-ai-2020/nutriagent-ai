@@ -7,5 +7,8 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
     return;
   }
   console.error(err);
-  res.status(500).json({ error: err.message || "Internal server error" });
+  const safeMessage = process.env.NODE_ENV === "production"
+    ? "Internal server error"
+    : (err.message || "Internal server error");
+  res.status(500).json({ error: safeMessage });
 }

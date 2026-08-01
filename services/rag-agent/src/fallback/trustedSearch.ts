@@ -5,11 +5,13 @@ import {
   type TrustedSource,
 } from "../config/trustedSources.js";
 import { searchAllSitesViaDdgFallback } from "./trustedSearchFallback.js";
+import { prisma } from "@nutriagent/db";
 
 export interface SearchResultLink {
   url: string;
   title: string;
   domain: string;
+  text?: string;
 }
 
 export interface GoogleCseItem {
@@ -83,6 +85,59 @@ async function searchPubMed(keywords: string, fetchImpl: typeof fetch): Promise<
   }
 }
 
+async function searchUSDA(keywords: string, fetchImpl: typeof fetch): Promise<SearchResultLink[]> {
+  // Extract the core food term (e.g., "calories in an apple" -> "apple") to improve USDA search
+  const coreQuery = keywords.replace(/(calories|protein|carbs|fat|nutrition)\s+in\s+/ig, "").trim();
+
+  try {
+    const localFood = await prisma.localFood.findFirst({
+      where: { description: { contains: coreQuery, mode: "insensitive" } }
+    });
+
+    if (localFood) {
+      const text = `Food: ${localFood.description}\nNutrients: Calories: ${localFood.calories} kcal, Protein: ${localFood.protein} g, Fat: ${localFood.fat} g, Carbs: ${localFood.carbs} g`;
+      return [{
+        url: `local://fdc/${localFood.fdcId}`,
+        title: `Local USDA Food: ${localFood.description}`,
+        domain: "local.fdc",
+        text
+      }];
+    }
+  } catch (err) {
+    console.warn("Local DB USDA search failed:", err);
+  }
+
+  const apiKey = process.env.FDC_API_KEY?.trim();
+  if (!apiKey) {
+    console.warn("FDC_API_KEY not configured. Skipping USDA FoodData Central live search.");
+    return [];
+  }
+
+  try {
+    const searchUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(apiKey)}&query=${encodeURIComponent(coreQuery)}&pageSize=3`;
+    const res = await fetchImpl(searchUrl);
+    if (!res.ok) return [];
+
+    const data = (await res.json()) as { foods?: any[] };
+    const foods = data.foods ?? [];
+    return foods.map((food) => {
+      const nutrients = (food.foodNutrients ?? [])
+        .map((n: any) => `${n.nutrientName}: ${n.value} ${n.unitName}`)
+        .join(", ");
+      const text = `Food: ${food.description}\nNutrients: ${nutrients}`;
+      return {
+        url: `https://fdc.nal.usda.gov/fdc-app.html#/food-details/${food.fdcId}/nutrients`,
+        title: `USDA FoodData Central: ${food.description}`,
+        domain: "fdc.nal.usda.gov",
+        text,
+      };
+    });
+  } catch (err) {
+    console.warn("USDA FoodData Central search failed:", err);
+    return [];
+  }
+}
+
 async function searchGoogleCustomSearch(
   keywords: string,
   fetchImpl: typeof fetch
@@ -134,6 +189,11 @@ async function searchSiteSources(
   return searchDdg(keywords, fetchImpl);
 }
 
+export function isUSDAQuery(keywords: string): boolean {
+  return /(calories|protein|carbs|fat|nutrition|sugar|vitamin|macronutrients?|nutritional)/i.test(keywords) ||
+         /what'?s\s+(in|inside)\s+a/i.test(keywords);
+}
+
 export async function searchTrustedSources(
   keywords: string,
   fetchImpl: typeof fetch = fetch,
@@ -143,9 +203,22 @@ export async function searchTrustedSources(
   const results: SearchResultLink[] = [];
   const seen = new Set<string>();
 
+  // 1. USDA FoodData Central (for nutrition queries)
+  if (isUSDAQuery(keywords)) {
+    for (const link of await searchUSDA(keywords, fetchImpl)) {
+      if (seen.has(link.url)) continue;
+      seen.add(link.url);
+      results.push(link);
+    }
+    // If USDA provided results, we can return early for these highly specific queries.
+    if (results.length > 0) {
+      return results.slice(0, 8);
+    }
+  }
+
+  // 2. PubMed (if configured as a trusted source)
   const searchPubMedFn = deps.searchPubMed ?? searchPubMed;
   const pubmedSource = config.domains.find((s: TrustedSource) => s.searchType === "pubmed_eutils");
-
   if (pubmedSource) {
     for (const link of await searchPubMedFn(keywords, fetchImpl)) {
       if (seen.has(link.url)) continue;
@@ -154,6 +227,7 @@ export async function searchTrustedSources(
     }
   }
 
+  // 3. General Site Search (Google or DDG Fallback)
   for (const link of await searchSiteSources(keywords, fetchImpl, deps)) {
     if (seen.has(link.url)) continue;
     seen.add(link.url);

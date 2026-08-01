@@ -1,4 +1,4 @@
-import { getLlmSettings } from "@nutriagent/db";
+import { getCachedLlmSettings } from "@nutriagent/db";
 import { openRouterChat } from "@nutriagent/shared";
 import { matchHistorySql } from "./historyTemplates";
 
@@ -17,7 +17,7 @@ export async function generateSQL(question: string, schemaDescription: string): 
   const template = matchHistorySql(question);
   if (template) return template;
 
-  const llm = await getLlmSettings();
+  const llm = await getCachedLlmSettings();
   const apiKey = llm.openRouterApiKey || process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     throw new Error("OpenRouter API key is not configured for Text2SQL");

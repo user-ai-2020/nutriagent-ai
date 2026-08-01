@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
+import os from "os";
 import fs from "fs";
 import { createId } from "@nutriagent/shared";
 import { z } from "zod";
@@ -21,23 +22,46 @@ export const chatRouter = Router();
 chatRouter.use(authMiddleware);
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: os.tmpdir(),
+    filename: (_req, file, cb) => cb(null, `nutriagent-${Date.now()}-${file.originalname}`),
+  }),
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 const messageSchema = z.object({
   message: z.string().min(1),
   mealId: z.number().optional(),
+  sessionId: z.number().optional(),
+});
+
+chatRouter.post("/session", async (req: AuthRequest, res, next) => {
+  try {
+    const session = await prisma.chatSession.create({
+      data: {
+        userId: req.user!.userId,
+      },
+    });
+    res.json(session);
+  } catch (err) {
+    next(err);
+  }
 });
 
 chatRouter.get("/history", async (req: AuthRequest, res, next) => {
   try {
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const cursor = req.query.cursor ? Number(req.query.cursor) : undefined;
     const messages = await prisma.chatHistory.findMany({
       where: { userId: req.user!.userId },
       orderBy: { timestamp: "asc" },
-      take: 100,
+      take: limit + 1,
+      ...(cursor ? { cursor: { messageId: cursor }, skip: 1 } : {}),
     });
-    res.json(messages);
+    const hasMore = messages.length > limit;
+    const result = hasMore ? messages.slice(0, limit) : messages;
+    const nextCursor = hasMore ? result[result.length - 1]?.messageId : undefined;
+    res.json({ messages: result, nextCursor });
   } catch (err) {
     next(err);
   }
@@ -48,6 +72,7 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
     const body = messageSchema.parse({
       message: req.body.message,
       mealId: req.body.mealId ? Number(req.body.mealId) : undefined,
+      sessionId: req.body.sessionId ? Number(req.body.sessionId) : undefined,
     });
 
     const profile = await prisma.userProfile.findUnique({
@@ -70,7 +95,8 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
       | undefined;
 
     if (req.file) {
-      const processed = await processMealImage(req.file.buffer);
+      const fileBuffer = await fs.promises.readFile(req.file.path);
+      const processed = await processMealImage(fileBuffer);
       const imageId = createId();
       const storageKey = mealImageStorageKey(req.user!.userId, imageId);
       const storage = createImageStorage();
@@ -88,6 +114,26 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
         capturedAt: new Date().toISOString(),
         displayUrl: uploaded.url,
       };
+
+      // Clean up temp file
+      fs.promises.unlink(req.file.path).catch(() => {});
+    }
+
+    let finalSessionId = body.sessionId;
+    if (!finalSessionId) {
+      // Find latest session or create one
+      const latest = await prisma.chatSession.findFirst({
+        where: { userId: req.user!.userId },
+        orderBy: { createdAt: "desc" },
+      });
+      if (latest) {
+        finalSessionId = latest.id;
+      } else {
+        const newSession = await prisma.chatSession.create({
+          data: { userId: req.user!.userId },
+        });
+        finalSessionId = newSession.id;
+      }
     }
 
     await prisma.chatHistory.create({
@@ -96,6 +142,7 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
         role: "user",
         content: body.message,
         mealId: body.mealId,
+        sessionId: finalSessionId,
       },
     });
 
@@ -110,6 +157,7 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
       profile: profileData,
       mealImage,
       imageUrl: mealImage?.displayUrl,
+      sessionId: finalSessionId,
     });
 
     await prisma.chatHistory.create({
@@ -119,6 +167,7 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
         content: result.reply,
         mealId: result.mealId,
         sources: result.sources,
+        sessionId: finalSessionId,
       },
     });
 

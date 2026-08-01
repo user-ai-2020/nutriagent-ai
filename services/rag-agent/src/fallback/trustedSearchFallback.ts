@@ -16,8 +16,9 @@ function decodeDdgRedirect(href: string): string | null {
   }
 }
 
-export function parseDdgHtmlResults(html: string, allowedDomain: string): SearchResultLink[] {
+export function parseDdgHtmlResults(html: string, allowedDomains: string | string[]): SearchResultLink[] {
   const links: SearchResultLink[] = [];
+  const domains = Array.isArray(allowedDomains) ? allowedDomains : [allowedDomains];
   const re = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
   let match: RegExpExecArray | null;
   while ((match = re.exec(html)) !== null) {
@@ -25,11 +26,12 @@ export function parseDdgHtmlResults(html: string, allowedDomain: string): Search
     if (!decoded) continue;
     try {
       const host = new URL(decoded).hostname.toLowerCase();
-      if (host !== allowedDomain.toLowerCase() && !host.endsWith(`.${allowedDomain.toLowerCase()}`)) {
+      const matchedDomain = domains.find(d => host === d.toLowerCase() || host.endsWith(`.${d.toLowerCase()}`));
+      if (!matchedDomain) {
         continue;
       }
       const title = match[2]!.replace(/<[^>]+>/g, "").trim();
-      links.push({ url: decoded, title: title || decoded, domain: allowedDomain });
+      links.push({ url: decoded, title: title || decoded, domain: matchedDomain });
     } catch {
       /* skip invalid */
     }
@@ -70,15 +72,38 @@ export async function searchAllSitesViaDdgFallback(
   const results: SearchResultLink[] = [];
   const seen = new Set<string>();
 
-  for (const source of config.domains) {
-    if (source.searchType !== "site") continue;
+  const siteDomains = config.domains
+    .filter((s) => s.searchType === "site")
+    .map((s) => s.domain);
 
-    const links = await searchSiteViaDdg(source, keywords, fetchImpl);
-    for (const link of links) {
-      if (seen.has(link.url)) continue;
-      seen.add(link.url);
-      results.push(link);
+  if (siteDomains.length === 0) return [];
+
+  const siteQuery = siteDomains.map((d) => `site:${d}`).join(" OR ");
+  const combinedKeywords = `${siteQuery} ${keywords}`;
+
+  try {
+    const q = encodeURIComponent(combinedKeywords);
+    const res = await fetchImpl(`https://html.duckduckgo.com/html/?q=${q}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "NutriAgentBot/1.0 (+https://nutriagent.ai)",
+      },
+      body: `q=${q}`,
+    });
+    
+    if (res.ok) {
+      const html = await res.text();
+      const links = parseDdgHtmlResults(html, siteDomains);
+      
+      for (const link of links) {
+        if (seen.has(link.url)) continue;
+        seen.add(link.url);
+        results.push(link);
+      }
     }
+  } catch (err) {
+    console.warn(`DuckDuckGo combined site search failed:`, err);
   }
 
   return results.slice(0, 8);

@@ -147,9 +147,9 @@ describe("validateSQL", () => {
     );
   });
 
-  it("accepts daily_steps last-7-days query and injects user_id", () => {
+  it("accepts activity.daily_steps last-7-days query (schema-qualified) and injects user_id", () => {
     const sql = validateSQL(
-      `SELECT date, steps FROM daily_steps
+      `SELECT date, steps FROM activity.daily_steps
        WHERE date >= CURRENT_DATE - INTERVAL '7 days'
        ORDER BY date
        LIMIT 30`,
@@ -158,6 +158,25 @@ describe("validateSQL", () => {
     assert.match(sql, /user_id"\s*=\s*42|"user_id"\s*=\s*42|\.user_id\s*=\s*42/i);
     assert.match(sql, /daily_steps/i);
     assert.match(sql, /LIMIT\s+30/i);
+  });
+
+  it("accepts activity.exercise_logs query (schema-qualified) and injects user_id", () => {
+    const sql = validateSQL(
+      `SELECT activity_type, duration_minutes, logged_at FROM activity.exercise_logs
+       ORDER BY logged_at DESC
+       LIMIT 20`,
+      USER_ID
+    );
+    assert.match(sql, /user_id"\s*=\s*42|"user_id"\s*=\s*42|\.user_id\s*=\s*42/i);
+    assert.match(sql, /exercise_logs/i);
+    assert.match(sql, /LIMIT\s+20/i);
+  });
+
+  it("blocks unqualified daily_steps (must use activity.daily_steps)", () => {
+    assert.throws(
+      () => validateSQL("SELECT steps FROM daily_steps LIMIT 10", USER_ID),
+      (err: unknown) => err instanceof SqlValidationError && /not allowed.*daily_steps/i.test((err as Error).message)
+    );
   });
 });
 

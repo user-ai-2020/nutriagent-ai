@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { api, getToken } from "./api";
+import { api } from "./api";
 import {
   readLanguageCookieClient,
   syncDocumentDirection,
@@ -53,16 +53,14 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     let lang: ResponseLanguage =
       readLanguageCookieClient() ?? readCachedLanguage() ?? "en";
 
-    if (getToken()) {
-      try {
-        const me = await api<{ profile?: { preferredLanguage?: string | null } }>("/api/auth/me");
-        const fromProfile = me.profile?.preferredLanguage;
-        if (fromProfile === "he" || fromProfile === "en" || fromProfile === "ru") {
-          lang = fromProfile;
-        }
-      } catch {
-        /* keep cookie/cache/default */
+    try {
+      const me = await api<{ profile?: { preferredLanguage?: string | null } }>("/api/auth/me");
+      const fromProfile = me.profile?.preferredLanguage;
+      if (fromProfile === "he" || fromProfile === "en" || fromProfile === "ru") {
+        lang = fromProfile;
       }
+    } catch {
+      /* keep cookie/cache/default */
     }
 
     persistLanguagePreference(lang);

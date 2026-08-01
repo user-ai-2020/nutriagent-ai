@@ -113,7 +113,7 @@ async function runRagPipelineInner(
     for (const link of links.slice(0, 3)) {
       try {
         await deps.ingest(
-          { url: link.url },
+          { url: link.url, title: link.title, text: link.text },
           { embed: deps.embed, fetchImpl: ingestFetch }
         );
       } catch (err) {

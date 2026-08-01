@@ -33,7 +33,7 @@ text2sqlRouter.post("/query", async (req, res) => {
   try {
     generatedSql = await generateSQL(question.trim(), TEXT2SQL_SCHEMA_DESCRIPTION);
     validatedSql = validateSQL(generatedSql, userId);
-    const rows = await executeSQL(validatedSql);
+    const rows = await executeSQL(validatedSql, userId);
     const answer = await formatAnswer(question.trim(), rows, preferredLanguage);
 
     await logText2SqlQuery({

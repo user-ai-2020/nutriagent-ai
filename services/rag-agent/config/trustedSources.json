@@ -21,11 +21,6 @@
       "searchType": "site"
     },
     {
-      "domain": "www.who.int",
-      "name": "WHO",
-      "searchType": "site"
-    },
-    {
       "domain": "www.nutrition.gov",
       "name": "Nutrition.gov",
       "searchType": "site"
@@ -33,6 +28,31 @@
     {
       "domain": "www.health.gov.il",
       "name": "Israel Ministry of Health",
+      "searchType": "site"
+    },
+    {
+      "domain": "who.int",
+      "name": "WHO",
+      "searchType": "site"
+    },
+    {
+      "domain": "nhs.uk",
+      "name": "NHS",
+      "searchType": "site"
+    },
+    {
+      "domain": "efsa.europa.eu",
+      "name": "EFSA",
+      "searchType": "site"
+    },
+    {
+      "domain": "health.harvard.edu",
+      "name": "Harvard Health",
+      "searchType": "site"
+    },
+    {
+      "domain": "cochranelibrary.com",
+      "name": "Cochrane Library",
       "searchType": "site"
     }
   ]

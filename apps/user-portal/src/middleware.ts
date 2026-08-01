@@ -2,11 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 
 const API_PROXY_TARGET = (process.env.API_PROXY_TARGET || "http://127.0.0.1:3000").replace(/\/$/, "");
 
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
 /** Proxy /api/* and /meal-images/* to the API gateway (same-origin for the browser). */
 export async function middleware(req: NextRequest) {
+  if (req.nextUrl.pathname.startsWith("/api/auth/")) {
+    return NextResponse.next();
+  }
+
+  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
+  const now = Date.now();
+  const windowMs = 60000;
+  const limit = 100;
+
+  const record = rateLimitMap.get(ip);
+  if (record && record.resetTime > now) {
+    record.count++;
+    if (record.count > limit) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+  } else {
+    rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs });
+  }
+
   const target = `${API_PROXY_TARGET}${req.nextUrl.pathname}${req.nextUrl.search}`;
   const headers = new Headers(req.headers);
   headers.set("host", new URL(API_PROXY_TARGET).host);
+
+  const token = req.cookies.get("nutriagent_token")?.value;
+  if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const init: RequestInit & { duplex?: "half" } = {
     method: req.method,

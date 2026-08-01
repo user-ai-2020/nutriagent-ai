@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { apiBaseUrl, api } from "@/lib/api";
 import { Segmented } from "@/components/Segmented";
+import { useMeals } from "@/hooks/queries";
+import { useMemo } from "react";
 
 interface Meal {
   mealId: number;
@@ -35,7 +37,6 @@ export default function SummaryPage() {
   const router = useRouter();
   const [range, setRange] = useState<Range>("week");
   const [search, setSearch] = useState("");
-  const [meals, setMeals] = useState<Meal[]>([]);
 
   const RANGES = [
     { value: "day" as const, label: t("summary.rangeDay") },
@@ -43,17 +44,20 @@ export default function SummaryPage() {
     { value: "month" as const, label: t("summary.rangeMonth") },
   ];
 
-  useEffect(() => {
+  const paramsStr = useMemo(() => {
     const now = new Date();
     const from = new Date(now);
     if (range === "day") from.setHours(0, 0, 0, 0);
     else if (range === "week") from.setDate(from.getDate() - 7);
     else from.setMonth(from.getMonth() - 1);
 
-    const params = new URLSearchParams({ from: from.toISOString(), to: now.toISOString() });
-    if (search.trim()) params.set("q", search.trim());
-    api<Meal[]>(`/api/meals?${params}`).then(setMeals).catch(console.error);
+    const p = new URLSearchParams({ from: from.toISOString(), to: now.toISOString() });
+    if (search.trim()) p.set("q", search.trim());
+    return p.toString();
   }, [range, search]);
+
+  const { data: mealsData } = useMeals(paramsStr);
+  const meals: Meal[] = mealsData || [];
 
   function open(mealId: number) {
     localStorage.setItem("selectedMealId", String(mealId));

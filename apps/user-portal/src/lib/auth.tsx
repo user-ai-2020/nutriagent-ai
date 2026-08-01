@@ -1,7 +1,6 @@
-"use client";
-
-import { createContext, useContext, useEffect, useState } from "react";
-import { api, getToken, setToken } from "@/lib/api";
+import { createContext, useContext } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface User {
   userId: number;
@@ -21,45 +20,38 @@ interface AuthCtx {
 const AuthContext = createContext<AuthCtx | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    api<User>("/api/auth/me")
-      .then(setUser)
-      .catch(() => setToken(null))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: user = null, isLoading: loading } = useQuery({
+    queryKey: ["auth", "me"],
+    queryFn: () => api<User>("/api/auth/me"),
+    retry: false,
+    staleTime: Infinity,
+  });
 
   async function login(email: string, password: string) {
-    const data = await api<{ token: string; user: User }>("/api/auth/login", {
+    const data = await api<{ user: User }>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
-    setToken(data.token);
     localStorage.removeItem("selectedMealId");
-    setUser(data.user);
+    queryClient.setQueryData(["auth", "me"], data.user);
   }
 
   async function register(name: string, email: string, password: string) {
-    const data = await api<{ token: string; user: User }>("/api/auth/register", {
+    const data = await api<{ user: User }>("/api/auth/register", {
       method: "POST",
       body: JSON.stringify({ name, email, password }),
     });
-    setToken(data.token);
     localStorage.removeItem("selectedMealId");
-    setUser(data.user);
+    queryClient.setQueryData(["auth", "me"], data.user);
   }
 
-  function logout() {
-    setToken(null);
+  async function logout() {
+    await api("/api/auth/logout", { method: "POST" }).catch(() => {});
     localStorage.removeItem("selectedMealId");
-    setUser(null);
+    queryClient.setQueryData(["auth", "me"], null);
+    queryClient.clear();
   }
 
   return (

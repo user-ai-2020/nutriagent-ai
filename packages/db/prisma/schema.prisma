@@ -7,6 +7,7 @@ datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
   extensions = [vector]
+  schemas    = ["public", "activity", "media"]
 }
 
 model Role {
@@ -17,28 +18,34 @@ model Role {
   users     User[]
 
   @@map("roles")
+  @@schema("public")
 }
 
 model User {
-  userId        Int           @id @default(autoincrement()) @map("user_id")
+  userId        Int            @id @default(autoincrement()) @map("user_id")
   name          String
-  email         String        @unique
-  passwordHash  String        @map("password_hash")
-  roleId        Int           @map("role_id")
-  accountStatus String        @default("active") @map("account_status")
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
-  role          Role          @relation(fields: [roleId], references: [roleId])
+  email         String         @unique
+  passwordHash  String         @map("password_hash")
+  roleId        Int            @map("role_id")
+  accountStatus String         @default("active") @map("account_status")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  role          Role           @relation(fields: [roleId], references: [roleId])
   profile       UserProfile?
   meals         Meal[]
   mealImages    MealImage[]
   dailySteps    DailySteps[]
+  exerciseLogs  ExerciseLog[]
   chatHistory   ChatHistory[]
+  chatSessions  ChatSession[]
   auditLogs     AuditLog[]
+  userActionLogs UserActionLog[]
+  cachedAnswers CachedAnswer[]
 
   @@index([email])
   @@index([roleId])
   @@map("users")
+  @@schema("public")
 }
 
 model UserProfile {
@@ -59,12 +66,13 @@ model UserProfile {
   user               User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   @@map("user_profiles")
+  @@schema("public")
 }
 
 model DailySteps {
   id        Int      @id @default(autoincrement())
   userId    Int      @map("user_id")
-  date      DateTime @db.Date @map("date")
+  date      DateTime @map("date") @db.Date
   steps     Int
   source    String   @default("home")
   createdAt DateTime @default(now()) @map("created_at")
@@ -72,26 +80,27 @@ model DailySteps {
   user      User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   @@unique([userId, date])
-  @@index([userId, date])
   @@map("daily_steps")
+  @@schema("activity")
 }
 
 model Meal {
-  mealId       Int        @id @default(autoincrement()) @map("meal_id")
-  userId       Int        @map("user_id")
-  mealDatetime DateTime   @map("meal_datetime")
-  mealType     String     @default("snack") @map("meal_type") // breakfast | lunch | dinner | snack
-  source       String     @default("home")
-  imageUrl     String?    @map("image_url")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
-  user         User       @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  mealId       Int           @id @default(autoincrement()) @map("meal_id")
+  userId       Int           @map("user_id")
+  mealDatetime DateTime      @map("meal_datetime")
+  mealType     String        @default("snack") @map("meal_type") // breakfast | lunch | dinner | snack
+  source       String        @default("home")
+  imageUrl     String?       @map("image_url")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  user         User          @relation(fields: [userId], references: [userId], onDelete: Cascade)
   items        MealItem[]
   images       MealImage[]
   chatMessages ChatHistory[]
 
   @@index([userId, mealDatetime])
   @@map("meals")
+  @@schema("public")
 }
 
 model MealImage {
@@ -114,20 +123,23 @@ model MealImage {
   @@index([contentHash])
   @@index([userId, contentHash])
   @@map("meal_images")
+  @@schema("media")
 }
 
 model MealItem {
-  itemId             Int             @id @default(autoincrement()) @map("item_id")
-  mealId             Int             @map("meal_id")
-  foodType           String          @map("food_type")
-  estimatedQuantity  String          @map("estimated_quantity")
-  visionConfidence   Float?          @map("vision_confidence")
-  createdAt          DateTime        @default(now()) @map("created_at")
-  updatedAt          DateTime        @updatedAt @map("updated_at")
-  meal               Meal            @relation(fields: [mealId], references: [mealId], onDelete: Cascade)
-  nutritionValues    NutritionValue?
+  itemId            Int             @id @default(autoincrement()) @map("item_id")
+  mealId            Int             @map("meal_id")
+  foodType          String          @map("food_type")
+  estimatedQuantity String          @map("estimated_quantity")
+  visionConfidence  Float?          @map("vision_confidence")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  meal              Meal            @relation(fields: [mealId], references: [mealId], onDelete: Cascade)
+  nutritionValues   NutritionValue?
 
+  @@index([mealId])
   @@map("meal_items")
+  @@schema("public")
 }
 
 model NutritionValue {
@@ -143,22 +155,67 @@ model NutritionValue {
   item      MealItem @relation(fields: [itemId], references: [itemId], onDelete: Cascade)
 
   @@map("nutrition_values")
+  @@schema("public")
 }
 
 model ChatHistory {
-  messageId Int      @id @default(autoincrement()) @map("message_id")
-  userId    Int      @map("user_id")
-  mealId    Int?     @map("meal_id")
-  role      String   @default("user")
-  content   String
-  sources   Json?
-  timestamp DateTime @default(now())
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
-  meal      Meal?    @relation(fields: [mealId], references: [mealId], onDelete: SetNull)
+  messageId     Int          @id @default(autoincrement()) @map("message_id")
+  sessionId     Int?         @map("session_id")
+  userId        Int          @map("user_id")
+  mealId        Int?         @map("meal_id")
+  role          String       @default("user")
+  content       String
+  sources       Json?
+  timestamp     DateTime     @default(now())
+  createdAt     DateTime     @default(now()) @map("created_at")
+  user          User         @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  meal          Meal?        @relation(fields: [mealId], references: [mealId], onDelete: SetNull)
+  session       ChatSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([userId, timestamp])
+  @@index([mealId])
+  @@index([sessionId])
   @@map("chat_history")
+  @@schema("public")
+}
+
+model ChatSession {
+  id        Int           @id @default(autoincrement())
+  userId    Int           @map("user_id")
+  createdAt DateTime      @default(now()) @map("created_at")
+  user      User          @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  messages  ChatHistory[]
+
+  @@index([userId])
+  @@map("chat_sessions")
+  @@schema("public")
+}
+
+model LocalFood {
+  fdcId       Int    @id @map("fdc_id")
+  description String
+  calories    Float  @default(0)
+  protein     Float  @default(0)
+  fat         Float  @default(0)
+  carbs       Float  @default(0)
+
+  @@map("local_foods")
+  @@schema("public")
+}
+
+model UserActionLog {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @map("user_id")
+  actionType     String   @map("action_type")
+  status         String   @default("pending") // pending | completed | failed
+  requestSummary Json?    @map("request_summary")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  user           User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_action_logs")
+  @@schema("public")
 }
 
 model AuditLog {
@@ -174,6 +231,7 @@ model AuditLog {
   @@index([userId])
   @@index([actionType])
   @@map("audit_logs")
+  @@schema("public")
 }
 
 model KnowledgeDocument {
@@ -186,6 +244,7 @@ model KnowledgeDocument {
   updatedAt DateTime               @updatedAt @map("updated_at")
 
   @@map("knowledge_documents")
+  @@schema("public")
 }
 
 /// Singleton row (id = 1) — Admin LLM / OpenRouter configuration
@@ -203,6 +262,7 @@ model LlmSettings {
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   @@map("llm_settings")
+  @@schema("public")
 }
 
 /// Ingested web/PDF knowledge base document (RAG pipeline — Task 4)
@@ -223,19 +283,71 @@ model RagDocument {
   @@index([sourceDomain])
   @@index([status])
   @@map("rag_documents")
+  @@schema("public")
 }
 
 /// Searchable chunk with pgvector embedding + tsvector full-text (RAG pipeline — Task 4)
 model RagChunk {
-  id         String                 @id @default(cuid())
-  documentId String                 @map("document_id")
+  id         String                      @id @default(cuid())
+  documentId String                      @map("document_id")
   content    String
   embedding  Unsupported("vector(1024)")
   tsv        Unsupported("tsvector")?
-  chunkIndex Int                    @map("chunk_index")
-  createdAt  DateTime               @default(now()) @map("created_at")
-  document   RagDocument            @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkIndex Int                         @map("chunk_index")
+  createdAt  DateTime                    @default(now()) @map("created_at")
+  document   RagDocument                 @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@index([documentId])
   @@map("rag_chunks")
+  @@schema("public")
+}
+
+model ExerciseLog {
+  id              Int             @id @default(autoincrement())
+  userId          Int             @map("user_id")
+  activityType    String          @map("activity_type")
+  durationMinutes Int             @map("duration_minutes")
+  caloriesBurned  Int?            @map("calories_burned")
+  timestamp       DateTime        @default(now())
+  createdAt       DateTime        @default(now()) @map("created_at")
+  user            User            @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  images          ExerciseImage[]
+
+  @@index([userId, timestamp])
+  @@map("exercise_logs")
+  @@schema("activity")
+}
+
+model ExerciseImage {
+  id            String      @id @default(cuid())
+  exerciseId    Int?        @map("exercise_id")
+  userId        Int         @map("user_id")
+  storageKey    String      @map("storage_key")
+  width         Int
+  height        Int
+  fileSizeBytes Int         @map("file_size_bytes")
+  contentHash   String      @map("content_hash")
+  capturedAt    DateTime    @map("captured_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  exercise      ExerciseLog? @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([exerciseId])
+  @@index([contentHash])
+  @@index([userId, contentHash])
+  @@map("exercise_images")
+  @@schema("media")
+}
+
+model CachedAnswer {
+  id        Int                    @id @default(autoincrement())
+  userId    Int?                   @map("user_id")
+  question  String
+  answer    String
+  embedding Unsupported("vector(1024)")
+  createdAt DateTime               @default(now()) @map("created_at")
+  user      User?                  @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([question])
+  @@map("cached_answers")
+  @@schema("public")
 }

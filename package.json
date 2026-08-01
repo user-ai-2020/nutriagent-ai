@@ -32,5 +32,8 @@
       "prisma",
       "sharp"
     ]
+  },
+  "devDependencies": {
+    "csv-parse": "^7.0.1"
   }
 }

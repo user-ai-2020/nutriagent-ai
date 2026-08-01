@@ -103,7 +103,10 @@ async function main() {
       where: { title: doc.title },
     });
     if (!existing) {
-      await prisma.knowledgeDocument.create({ data: doc });
+      await prisma.$executeRaw`
+        INSERT INTO "knowledge_documents" ("title", "content", "category")
+        VALUES (${doc.title}, ${doc.content}, ${doc.category})
+      `;
     }
   }
 

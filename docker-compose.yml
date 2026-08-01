@@ -39,7 +39,7 @@ x-limit-postgres: &limit-postgres
     resources:
       limits:
         cpus: "1.0"
-        memory: 512M
+        memory: 1G
 
 x-limit-redis: &limit-redis
   deploy:
@@ -83,7 +83,7 @@ services:
     command:
       - postgres
       - -c
-      - shared_buffers=128MB
+      - shared_buffers=256MB
       - -c
       - max_connections=40
       - -c
@@ -259,6 +259,7 @@ services:
     environment:
       <<: *node-portal
       NEXT_PUBLIC_API_URL: http://127.0.0.1:3000
+      API_PROXY_TARGET: http://api-gateway:3000
     ports:
       - "3007:3007"
     depends_on:

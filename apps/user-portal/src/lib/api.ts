@@ -1,8 +1,3 @@
-import {
-  readAuthTokenCookieClient,
-  writeAuthTokenCookieClient,
-} from "@nutriagent/shared/authCookie";
-
 /** Browser uses same-origin paths; Next middleware proxies to the API gateway. */
 export function apiBaseUrl(): string {
   if (typeof window !== "undefined") return "";
@@ -16,33 +11,11 @@ const API_TIMEOUT_MS = 15_000;
 /** Chat/meal scans can legitimately take longer than dashboard calls. */
 export const CHAT_API_TIMEOUT_MS = 60_000;
 
-const LEGACY_TOKEN_KEY = "user_token";
-
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  const fromCookie = readAuthTokenCookieClient();
-  if (fromCookie) return fromCookie;
-  const legacy = localStorage.getItem(LEGACY_TOKEN_KEY);
-  if (legacy) {
-    writeAuthTokenCookieClient(legacy);
-    return legacy;
-  }
-  return null;
-}
-
-export function setToken(token: string | null) {
-  if (typeof window === "undefined") return;
-  writeAuthTokenCookieClient(token);
-  if (token) localStorage.setItem(LEGACY_TOKEN_KEY, token);
-  else localStorage.removeItem(LEGACY_TOKEN_KEY);
-}
-
 export async function api<T>(
   path: string,
   options: RequestInit = {},
   timeoutMs: number = API_TIMEOUT_MS
 ): Promise<T> {
-  const token = getToken();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
@@ -53,7 +26,6 @@ export async function api<T>(
       signal: controller.signal,
       headers: {
         ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },
     });

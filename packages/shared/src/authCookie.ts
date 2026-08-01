@@ -23,12 +23,20 @@ export function readAuthTokenFromCookieString(cookieHeader: string | undefined |
   }
 }
 
+function secureFlagForEnv(): string {
+  if (typeof globalThis === "undefined") return "";
+  const loc = (globalThis as { location?: { hostname?: string } }).location;
+  if (!loc?.hostname) return "";
+  if (loc.hostname === "localhost" || loc.hostname === "127.0.0.1") return "";
+  return "; Secure";
+}
+
 export function buildAuthTokenCookie(token: string): string {
-  return `${AUTH_TOKEN_COOKIE}=${encodeURIComponent(token)}; path=/; max-age=${AUTH_TOKEN_MAX_AGE_SECONDS}; SameSite=Lax`;
+  return `${AUTH_TOKEN_COOKIE}=${encodeURIComponent(token)}; path=/; max-age=${AUTH_TOKEN_MAX_AGE_SECONDS}; SameSite=Lax${secureFlagForEnv()}`;
 }
 
 export function buildClearAuthTokenCookie(): string {
-  return `${AUTH_TOKEN_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+  return `${AUTH_TOKEN_COOKIE}=; path=/; max-age=0; SameSite=Lax${secureFlagForEnv()}`;
 }
 
 export function readAuthTokenCookieClient(): string | null {

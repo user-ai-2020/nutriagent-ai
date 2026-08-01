@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { api, getToken, setToken } from "@/lib/api";
+import { api } from "@/lib/api";
 import { AuditIcon, LlmIcon, OverviewIcon, UsersIcon } from "./icons";
 
 const LINK_KEYS = [
@@ -23,12 +23,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [authState, setAuthState] = useState<AuthState>("loading");
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      router.replace("/");
-      return;
-    }
-
     api<{ role: string }>("/api/auth/me")
       .then((me) => {
         if (me.role !== "Admin") {
@@ -38,8 +32,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         }
         setAuthState("admin");
       })
-      .catch(() => {
-        setToken(null);
+      .catch(async () => {
+        await api("/api/auth/logout", { method: "POST" }).catch(() => {});
         setAuthState("unauthenticated");
         router.replace("/");
       });
@@ -104,8 +98,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             type="button"
             className="btn btn-ghost"
             style={{ justifyContent: "flex-start", fontSize: 13 }}
-            onClick={() => {
-              setToken(null);
+            onClick={async () => {
+              await api("/api/auth/logout", { method: "POST" }).catch(() => {});
               router.replace("/");
             }}
           >

@@ -58,6 +58,7 @@ export const ruTranslations = {
     analyzeMeal: "Проанализировать этот приём пищи",
     quickReplyEatNow: "Что мне съесть сейчас?",
     quickReplyYesterday: "Что я ел вчера?",
+    newChat: "Новый чат",
     emptyGreeting: "Добрый день! Сфотографируйте следующий приём пищи — я разберу КБЖУ — или спросите что угодно о вашем рационе.",
     photoReady: "Фото готово",
     logMealPhoto: "Записать фото еды",

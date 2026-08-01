@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { muted, serif } from "@/lib/ui";
 import { Segmented } from "@/components/Segmented";
+import { useDashboard, useMeal } from "@/hooks/queries";
 
 interface Totals {
   calories: number;
@@ -149,45 +150,50 @@ export default function NutrientsPage() {
     { value: "period" as const, label: t("nutrients.scopePeriod") },
   ];
   const [scope, setScope] = useState<Scope>("day");
-  const [data, setData] = useState<Dash | null>(null);
   const [mealTotals, setMealTotals] = useState<Totals>(EMPTY);
   const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api<Dash>("/api/dashboard?period=week")
-      .then((dash) => {
-        setData(dash);
-        setLoadError(null);
-        const mealId = localStorage.getItem("selectedMealId");
-        const todayEmpty = dash.todayTotals.calories === 0 && (dash.mealCount ?? 0) === 0;
-        if (mealId && todayEmpty) setScope("meal");
-      })
-      .catch((err) => {
-        setLoadError(err instanceof Error ? err.message : t("nutrients.loadFailed"));
-      });
-  }, []);
+  const [selectedMealId, setSelectedMealId] = useState<number | null>(null);
 
   useEffect(() => {
     const id = localStorage.getItem("selectedMealId");
-    if (!id) return;
-    api<Meal>(`/api/meals/${id}`)
-      .then((meal) =>
-        setMealTotals(
-          meal.items.reduce<Totals>((acc, item) => {
-            const n = item.nutritionValues;
-            if (!n) return acc;
-            return {
-              calories: acc.calories + n.calories,
-              protein: acc.protein + n.protein,
-              fat: acc.fat + n.fat,
-              carbs: acc.carbs + n.carbs,
-              sugar: acc.sugar + n.sugar,
-            };
-          }, EMPTY)
-        )
-      )
-      .catch(() => {});
+    if (id) setSelectedMealId(Number(id));
   }, []);
+
+  const { data, error, isFetching } = useDashboard("week");
+  const { data: mealData } = useMeal(selectedMealId);
+
+  useEffect(() => {
+    if (error) {
+      setLoadError(error instanceof Error ? error.message : t("nutrients.loadFailed"));
+    } else {
+      setLoadError(null);
+    }
+  }, [error, t]);
+
+  useEffect(() => {
+    if (data && selectedMealId) {
+      const todayEmpty = data.todayTotals.calories === 0 && (data.mealCount ?? 0) === 0;
+      if (todayEmpty) setScope("meal");
+    }
+  }, [data, selectedMealId]);
+
+  useEffect(() => {
+    if (mealData) {
+      setMealTotals(
+        (mealData.items.reduce as any)((acc: Totals, item: any) => {
+          const n = item.nutritionValues;
+          if (!n) return acc;
+          return {
+            calories: acc.calories + n.calories,
+            protein: acc.protein + n.protein,
+            fat: acc.fat + n.fat,
+            carbs: acc.carbs + n.carbs,
+            sugar: acc.sugar + n.sugar,
+          };
+        }, EMPTY)
+      );
+    }
+  }, [mealData]);
 
   if (loadError) {
     return (

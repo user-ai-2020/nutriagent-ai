@@ -36,11 +36,17 @@ function endOfWeekSaturday(d: Date): Date {
   return endOfDay(x);
 }
 
-function localDateKey(d: Date): string {
+export function localDateKey(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+export function daysBetween(start: Date, end: Date): number {
+  const utcStart = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  const utcEnd = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+  return Math.floor((utcEnd - utcStart) / (1000 * 60 * 60 * 24));
 }
 
 function sumNutrition(
@@ -113,6 +119,20 @@ dashboardRouter.get("/", async (req: AuthRequest, res, next) => {
       orderBy: { mealDatetime: "asc" },
     });
 
+    const dailySteps = await prisma.dailySteps.findMany({
+      where: {
+        userId: req.user!.userId,
+        date: { gte: from, lte: rangeEnd },
+      },
+    });
+
+    const exerciseLogs = await prisma.exerciseLog.findMany({
+      where: {
+        userId: req.user!.userId,
+        timestamp: { gte: from, lte: rangeEnd },
+      },
+    });
+
     const dayMeals = meals.filter(
       (m) => m.mealDatetime >= focusStart && m.mealDatetime <= focusEnd
     );
@@ -133,16 +153,34 @@ dashboardRouter.get("/", async (req: AuthRequest, res, next) => {
       else mealTypeBreakdown.snack += cals;
     }
 
-    const dailyMap = new Map<string, { calories: number; protein: number; fat: number; carbs: number }>();
-    for (const meal of meals) {
-      const key = localDateKey(meal.mealDatetime);
-      const day = dailyMap.get(key) ?? { calories: 0, protein: 0, fat: 0, carbs: 0 };
-      const mealTotals = sumNutrition([meal]);
-      day.calories += mealTotals.calories;
-      day.protein += mealTotals.protein;
-      day.fat += mealTotals.fat;
-      day.carbs += mealTotals.carbs;
-      dailyMap.set(key, day);
+    const paddedDailyBreakdown = [];
+    const totalDays = daysBetween(from, rangeEnd);
+    
+    for (let i = 0; i <= totalDays; i++) {
+      const currentDay = new Date(from);
+      currentDay.setDate(from.getDate() + i);
+      const dateKey = localDateKey(currentDay);
+      
+      const dayMealsList = meals.filter(m => localDateKey(m.mealDatetime) === dateKey);
+      const dayNutrition = sumNutrition(dayMealsList);
+      
+      const stepsCount = dailySteps
+        .filter(s => localDateKey(s.date) === dateKey)
+        .reduce((sum, s) => sum + s.steps, 0);
+        
+      const burned = exerciseLogs
+        .filter(e => localDateKey(e.timestamp) === dateKey)
+        .reduce((sum, e) => sum + (e.caloriesBurned || 0), 0);
+
+      paddedDailyBreakdown.push({
+        date: dateKey,
+        calories: dayNutrition.calories,
+        protein: dayNutrition.protein,
+        fat: dayNutrition.fat,
+        carbs: dayNutrition.carbs,
+        steps: stepsCount,
+        caloriesBurned: burned
+      });
     }
 
     const macroCalories = totals.protein * 4 + totals.carbs * 4 + totals.fat * 9;
@@ -171,7 +209,7 @@ dashboardRouter.get("/", async (req: AuthRequest, res, next) => {
         goal: profile?.dailyStepsGoal ?? 8000,
       },
       goals,
-      dailyBreakdown: Array.from(dailyMap.entries()).map(([date, data]) => ({ date, ...data })),
+      dailyBreakdown: paddedDailyBreakdown,
       macroPercentages,
       mealCount: dayMeals.length,
     });

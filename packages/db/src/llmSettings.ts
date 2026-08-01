@@ -57,3 +57,13 @@ export function maskApiKey(key: string | null | undefined): string {
   if (key.length <= 8) return "••••••••";
   return `${key.slice(0, 8)}…${key.slice(-4)}`;
 }
+
+let _llmCache: { data: LlmConfig; ts: number } | null = null;
+const LLM_SETTINGS_TTL_MS = 60_000;
+
+export async function getCachedLlmSettings(): Promise<LlmConfig> {
+  if (_llmCache && Date.now() - _llmCache.ts < LLM_SETTINGS_TTL_MS) return _llmCache.data;
+  const data = await getLlmSettings();
+  _llmCache = { data, ts: Date.now() };
+  return data;
+}

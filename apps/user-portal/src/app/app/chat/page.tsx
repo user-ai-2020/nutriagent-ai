@@ -3,62 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CITATION_SOURCE_I18N_KEY, normalizeCitationSource } from "@nutriagent/shared/citation-sources";
-import { api, apiBaseUrl, apiChat, CHAT_API_TIMEOUT_MS, getToken } from "@/lib/api";
+import { api, apiBaseUrl, apiChat, CHAT_API_TIMEOUT_MS } from "@/lib/api";
 import { Profile } from "@/lib/profile";
 import { muted } from "@/lib/ui";
 import { CameraIcon, SendIcon } from "@/components/icons";
 import { MultiModelMealCards } from "@/components/MultiModelMealCards";
 import { FlowerMacro, NutritionFlower } from "@/components/NutritionFlower";
 import { NutritionHistoryChart, NutritionHistoryData } from "@/components/NutritionHistoryChart";
+import { useProfile, useInvalidateMealData } from "@/hooks/queries";
+import { resizeImage } from "@/lib/imageUtils";
+import { PlusIcon } from "@/components/icons";
 
-interface Nutrition {
-  calories: number;
-  protein: number;
-  fat: number;
-  carbs: number;
-  sugar: number;
-}
-
-interface MealAnalysis {
-  items: Array<{ foodType: string; estimatedQuantity: string; visionConfidence: number }>;
-  totalNutrition: Nutrition;
-}
-
-type Msg =
-  | { kind: "text"; from: "user" | "agent"; text: string }
-  | { kind: "image"; from: "user"; url: string }
-  | { kind: "typing" }
-  | { kind: "rag"; text: string; sources: string[] }
-  | {
-      kind: "card";
-      mealName: string;
-      analysis: MealAnalysis;
-      recommendation?: string;
-      matchPct: number;
-    }
-  | { kind: "history"; text: string; data: NutritionHistoryData; sources?: string[] }
-  | {
-      kind: "multiModel";
-      text: string;
-      mealDescription?: string;
-      panels: Array<{
-        modelId: string;
-        modelLabel: string;
-        items: Array<{ foodType: string; estimatedQuantity: string; visionConfidence: number; nutrition: Nutrition }>;
-        totalNutrition: Nutrition;
-        error?: string;
-      }>;
-      rerankerScores: Array<{
-        foodType: string;
-        estimatedQuantity: string;
-        score: number;
-        modelAgreement: number;
-        avgConfidence: number;
-      }>;
-      fusionMethod?: "full" | "cluster_no_rerank" | "single_model_only" | "single_model_fallback" | "empty_pool_fallback";
-      fallbackModelLabel?: string;
-      sources?: string[];
-    };
+import { Nutrition, MealAnalysis, Msg } from "@/types/chatTypes";
 
 const GOAL_FAT = 70;
 const GOAL_CARBS = 250;
@@ -79,13 +35,30 @@ function ragReplyBody(text: string): string {
   return cut < text.length ? text.slice(0, cut).trimEnd() : text;
 }
 
+import { CitationSource } from "@nutriagent/shared";
+
 function formatSourceLabel(
-  src: string,
+  src: CitationSource,
   t: (key: string) => string
-): string {
+): { label: string; url?: string } {
+  if (typeof src === "object") {
+    return { label: src.title, url: src.url };
+  }
   const id = normalizeCitationSource(src);
   const i18nKey = CITATION_SOURCE_I18N_KEY[id];
-  return i18nKey ? t(`chat.sourceLabels.${i18nKey}`) : src;
+  return { label: i18nKey ? t(`chat.sourceLabels.${i18nKey}`) : src };
+}
+
+function SourceTag({ src, t }: { src: CitationSource; t: any }) {
+  const { label, url } = formatSourceLabel(src, t);
+  if (url) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="tag tag-outline" style={{ textDecoration: "none" }}>
+        {label}
+      </a>
+    );
+  }
+  return <span className="tag tag-outline">{label}</span>;
 }
 
 export default function ChatPage() {
@@ -95,13 +68,12 @@ export default function ChatPage() {
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [profile, setProfile] = useState<Profile>({});
+  const { data: profileData } = useProfile();
+  const profile: Profile = profileData || {};
+  const invalidateMealData = useInvalidateMealData();
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    api<Profile>("/api/profile").then(setProfile).catch(() => {});
-  }, []);
+  const [sessionId, setSessionId] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     if (!file) {
@@ -128,6 +100,16 @@ export default function ChatPage() {
       { colorId: "fat", label: t("nutrients.fat"), value: `${Math.round(n.fat)}g`, pct: pct(n.fat, GOAL_FAT) },
       { colorId: "sugar", label: t("nutrients.sugar"), value: `${Math.round(n.sugar)}g`, pct: pct(n.sugar, GOAL_SUGAR) },
     ];
+  }
+
+  async function handleNewChat() {
+    try {
+      const res = await apiChat("/api/chat/session", { method: "POST" });
+      setSessionId(res.id);
+      setMessages([]);
+    } catch (err) {
+      console.warn("Failed to create new chat session", err);
+    }
   }
 
   async function send(text?: string) {
@@ -171,17 +153,17 @@ export default function ChatPage() {
       };
 
       if (file) {
+        const resizedBlob = await resizeImage(file);
         const form = new FormData();
         form.append("message", message);
-        form.append("image", file);
-        const token = getToken();
+        form.append("image", resizedBlob, file.name);
+        if (sessionId) form.append("sessionId", String(sessionId));
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), CHAT_API_TIMEOUT_MS);
         let res: Response;
         try {
           res = await fetch(`${apiBaseUrl()}/api/chat/message`, {
             method: "POST",
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
             body: form,
             signal: controller.signal,
           });
@@ -192,10 +174,15 @@ export default function ChatPage() {
         if (!res.ok) throw new Error((data as { error?: string }).error || "Request failed");
         setFile(null);
       } else {
-        data = await apiChat("/api/chat/message", { method: "POST", body: JSON.stringify({ message }) });
+        const payload: Record<string, any> = { message };
+        if (sessionId) payload.sessionId = sessionId;
+        data = await apiChat("/api/chat/message", { method: "POST", body: JSON.stringify(payload) });
       }
 
-      if (data.mealId) localStorage.setItem("selectedMealId", String(data.mealId));
+      if (data.mealId) {
+        localStorage.setItem("selectedMealId", String(data.mealId));
+        invalidateMealData();
+      }
 
       const next: Msg[] = [];
       if (data.itemsDetected === false && data.multiModelMealAnalysis) {
@@ -268,9 +255,19 @@ export default function ChatPage() {
 
   return (
     <div className="na-chat-root" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-      <div style={{ marginBottom: "var(--space-3)", paddingLeft: "var(--space-4)", flexShrink: 0 }}>
-        <h2 style={{ fontSize: 22, margin: "0 0 2px" }}>{t("chat.title")}</h2>
-        <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>{t("chat.subtitle")}</p>
+      <div style={{ marginBottom: "var(--space-3)", paddingLeft: "var(--space-4)", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h2 style={{ fontSize: 22, margin: "0 0 2px" }}>{t("chat.title")}</h2>
+          <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>{t("chat.subtitle")}</p>
+        </div>
+        <button
+          className="btn btn-secondary"
+          onClick={handleNewChat}
+          style={{ fontSize: 13, padding: "8px 12px", display: "flex", alignItems: "center", gap: 6 }}
+        >
+          <PlusIcon size={14} />
+          {t("chat.newChat", "New Chat")}
+        </button>
       </div>
 
       <div
@@ -394,10 +391,8 @@ export default function ChatPage() {
                   {ragReplyBody(msg.text)}
                 </div>
                 <div className="chat-source-tags">
-                  {msg.sources.slice(0, 4).map((src) => (
-                    <span key={src} className="tag tag-outline">
-                      {formatSourceLabel(src, t)}
-                    </span>
+                  {msg.sources.slice(0, 4).map((src, idx) => (
+                    <SourceTag key={idx} src={src} t={t} />
                   ))}
                 </div>
               </div>
@@ -499,10 +494,8 @@ export default function ChatPage() {
                 />
                 {msg.sources?.length ? (
                   <div className="chat-source-tags">
-                    {msg.sources.slice(0, 5).map((src) => (
-                      <span key={src} className="tag tag-outline">
-                        {formatSourceLabel(src, t)}
-                      </span>
+                    {msg.sources.slice(0, 5).map((src, idx) => (
+                      <SourceTag key={idx} src={src} t={t} />
                     ))}
                   </div>
                 ) : null}
@@ -525,10 +518,8 @@ export default function ChatPage() {
                 <NutritionHistoryChart data={msg.data} goalCalories={goalCalories} />
                 {msg.sources?.length ? (
                   <div className="chat-source-tags">
-                    {msg.sources.slice(0, 3).map((src) => (
-                      <span key={src} className="tag tag-outline">
-                        {formatSourceLabel(src, t)}
-                      </span>
+                    {msg.sources.slice(0, 3).map((src, idx) => (
+                      <SourceTag key={idx} src={src} t={t} />
                     ))}
                   </div>
                 ) : null}

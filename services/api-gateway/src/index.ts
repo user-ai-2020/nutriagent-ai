@@ -11,6 +11,7 @@ import { chatRouter } from "./routes/chat";
 import { dashboardRouter } from "./routes/dashboard";
 import { adminRouter } from "./routes/admin";
 import { usersRouter } from "./routes/users";
+import { activityRouter } from "./routes/activity";
 import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
@@ -103,6 +104,7 @@ app.use("/api/meals", mealsRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/activity", activityRouter);
 
 app.use(errorHandler);
 

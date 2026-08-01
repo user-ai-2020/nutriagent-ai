@@ -9,6 +9,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./api-client": {
+      "types": "./dist/api-client.d.ts",
+      "default": "./dist/api-client.js"
+    },
     "./authCookie": {
       "types": "./dist/authCookie.d.ts",
       "default": "./dist/authCookie.js"

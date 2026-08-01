@@ -58,6 +58,7 @@ export const enTranslations = {
     analyzeMeal: "Analyze this meal",
     quickReplyEatNow: "What should I eat now?",
     quickReplyYesterday: "What did I eat yesterday?",
+    newChat: "New chat",
     emptyGreeting:
       "Good afternoon! Snap a photo of your next meal and I'll break down the nutrition — or ask me anything about your diet.",
     photoReady: "Photo ready",

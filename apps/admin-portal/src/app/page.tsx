@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { api, getToken, setToken } from "@/lib/api";
+import { api } from "@/lib/api";
 
 type Gate = "checking" | "form" | "denied";
 
@@ -20,11 +20,6 @@ export default function LoginPage() {
     let cancelled = false;
 
     async function reuseSharedSession() {
-      const token = getToken();
-      if (!token) {
-        if (!cancelled) setGate("form");
-        return;
-      }
       try {
         const me = await api<{ role: string }>("/api/auth/me");
         if (cancelled) return;
@@ -34,7 +29,7 @@ export default function LoginPage() {
         }
         setGate("denied");
       } catch {
-        setToken(null);
+        await api("/api/auth/logout", { method: "POST" }).catch(() => {});
         if (!cancelled) setGate("form");
       }
     }
@@ -50,7 +45,7 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const data = await api<{ token: string; user: { role: string } }>("/api/auth/login", {
+      const data = await api<{ user: { role: string } }>("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
@@ -58,7 +53,6 @@ export default function LoginPage() {
         setError(t("auth.adminAccessRequired"));
         return;
       }
-      setToken(data.token);
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("auth.loginFailed"));

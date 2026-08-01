@@ -12,7 +12,18 @@ const PG_OPT = { database: "Postgresql" } as const;
 const BLOCKED_KEYWORDS =
   /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|COPY|EXECUTE|CALL)\b/i;
 
-const TABLE_WHITELIST = [...ALLOWED_TABLES].map((t) => `select::null::${t}`);
+// node-sql-parser whiteListCheck format: select::<schema>::<table>
+// For unqualified tables (public schema), schema is null → select::null::tablename
+// For schema-qualified tables like activity.daily_steps → select::activity::daily_steps
+const TABLE_WHITELIST = [...ALLOWED_TABLES].map((t) => {
+  const dotIdx = t.indexOf(".");
+  if (dotIdx !== -1) {
+    const schema = t.slice(0, dotIdx);
+    const table = t.slice(dotIdx + 1);
+    return `select::${schema}::${table}`;
+  }
+  return `select::null::${t}`;
+});
 
 export class SqlValidationError extends Error {
   constructor(message: string) {
@@ -103,11 +114,15 @@ function resolveAlias(refs: Map<string, TableRef>, table: string): string {
 function injectUserScope(select: Select, userId: number, refs: Map<string, TableRef>): void {
   const conditions: unknown[] = [];
   for (const table of USER_SCOPED_TABLES) {
-    if (refs.has(table)) conditions.push(userIdExpr(resolveAlias(refs, table), userId));
+    // The AST parser registers tables by their bare name (without schema prefix)
+    // e.g. "activity.daily_steps" in SQL → refs key is "daily_steps"
+    const dotIdx = table.indexOf(".");
+    const bareTable = dotIdx !== -1 ? table.slice(dotIdx + 1) : table;
+    if (refs.has(bareTable)) conditions.push(userIdExpr(resolveAlias(refs, bareTable), userId));
   }
   if (conditions.length === 0) {
     throw new SqlValidationError(
-      "Query must reference at least one user-scoped table (meals, meal_images, user_profiles)"
+      "Query must reference at least one user-scoped table (meals, media.meal_images, user_profiles, activity.daily_steps, activity.exercise_logs)"
     );
   }
   let merged = conditions[0];

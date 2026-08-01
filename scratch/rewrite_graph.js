@@ -1,0 +1,530 @@
+const fs = require('fs');
+
+const code = `import { Annotation, StateGraph, END, START } from "@langchain/langgraph";
+import {
+  ChatIntent,
+  CITATION_SOURCES,
+  MultiModelMealAnalysis,
+  OrchestratorRequest,
+  OrchestratorResponse,
+  VisionAnalyzeResponse,
+  VisionFoodItem,
+  openRouterEmbed,
+  openRouterChat,
+  resolveResponseLanguage,
+  responseLanguageInstruction,
+} from "@nutriagent/shared";
+import {
+  callAgentWithTimeout,
+  CHAT_AGENT_TIMEOUT_MS,
+  classifyIntent,
+  GRAPHDB_URL,
+  NUTRITION_URL,
+  RAG_URL,
+  saveMeal,
+  TEXT2SQL_URL,
+  uniqueCitationSources,
+  VISION_URL,
+  rerankerPanelLabel,
+} from "./utils";
+import { buildMealDescription, buildNoFoodDetectedResponse, filterRealFoodItems, isEmptyVisionDetection } from "./mealAnalysis";
+import { buildVisionModelVersion } from "@nutriagent/shared";
+import { prisma, getCachedLlmSettings } from "@nutriagent/db";
+
+type NutritionCalc = {
+  items: Array<VisionFoodItem & { nutrition: { calories: number; protein: number; fat: number; carbs: number; sugar: number } }>;
+  totalNutrition: { calories: number; protein: number; fat: number; carbs: number; sugar: number };
+  summary: string;
+  sources: string[];
+  warnings: string[];
+};
+
+type RagRetrieveResult = { context: string[]; sources: string[]; matchScore?: number };
+
+export const OrchestratorState = Annotation.Root({
+  request: Annotation<OrchestratorRequest & { imageUrl?: string; imageMime?: string; imageBase64?: string }>(),
+  intent: Annotation<ChatIntent>(),
+  agentPath: Annotation<string[]>({
+    reducer: (curr, update) => curr.concat(update),
+    default: () => ["Router/Orchestrator"],
+  }),
+  sources: Annotation<string[]>({
+    reducer: (curr, update) => curr.concat(update),
+    default: () => [],
+  }),
+  ragResult: Annotation<RagRetrieveResult>(),
+  visionResult: Annotation<VisionAnalyzeResponse>(),
+  rerankerCalc: Annotation<NutritionCalc>(),
+  panelCalcs: Annotation<Array<{ mr: any; calc: NutritionCalc | null }>>(),
+  graphRecommendations: Annotation<string[]>(),
+  mealId: Annotation<number>(),
+  questionEmbedding: Annotation<number[]>(),
+  response: Annotation<OrchestratorResponse>(),
+});
+
+async function classifyIntentNode(state: typeof OrchestratorState.State) {
+  const intent = classifyIntent(state.request.message, Boolean(state.request.imageBase64));
+  return { intent };
+}
+
+// ---------------------------------------------------------------------------
+// BRANCH 1: QUESTION (Fact Lookup)
+// ---------------------------------------------------------------------------
+
+async function questionEmbedNode(state: typeof OrchestratorState.State) {
+  const settings = await getCachedLlmSettings();
+  const [embedding] = await openRouterEmbed({
+    input: state.request.message,
+    apiKey: settings.openRouterApiKey,
+  });
+  return { questionEmbedding: embedding };
+}
+
+async function questionCacheCheckNode(state: typeof OrchestratorState.State) {
+  if (!state.questionEmbedding) return {};
+
+  const embeddingLiteral = \`[\${state.questionEmbedding.join(",")}]\`;
+
+  const matches = await prisma.$queryRaw<Array<{ answer: string; similarity: number }>>\`
+    SELECT answer, 1 - (embedding <=> \${embeddingLiteral}::vector) AS similarity
+    FROM cached_answers
+    WHERE user_id IS NULL OR user_id = \${state.request.userId || null}
+    ORDER BY embedding <=> \${embeddingLiteral}::vector
+    LIMIT 1;
+  \`;
+
+  if (matches.length > 0 && matches[0].similarity > 0.85) {
+    const response: OrchestratorResponse = {
+      intent: state.intent,
+      reply: matches[0].answer,
+      sources: ["Cache"],
+      agentPath: state.agentPath.concat(["Router (Cache Hit)"]),
+    };
+    return { response, agentPath: ["Router (Cache Hit)"] };
+  }
+
+  return { agentPath: ["Router (Cache Miss)"] };
+}
+
+async function questionSearchNode(state: typeof OrchestratorState.State) {
+  const [ragResult, graphResult] = await Promise.all([
+    callAgentWithTimeout<RagRetrieveResult>(
+      \`\${RAG_URL}/retrieve\`,
+      {
+        query: state.request.message,
+        topK: 3,
+        profile: state.request.profile,
+        enableWebFallback: true,
+      },
+      CHAT_AGENT_TIMEOUT_MS
+    ).catch((err) => {
+      console.warn("Question: RAG retrieve failed:", err);
+      return { context: [], sources: [] };
+    }),
+    callAgentWithTimeout<{ recommendations: string[]; safeFoods: string[] }>(
+      \`\${GRAPHDB_URL}/recommend\`,
+      {
+        foodQuery: state.request.message,
+        profile: state.request.profile,
+      },
+      CHAT_AGENT_TIMEOUT_MS
+    ).catch((err) => {
+      console.warn("Question: GraphDB recommend failed:", err);
+      return { recommendations: [], safeFoods: [] };
+    }),
+  ]);
+
+  const sourcesUpdate = [...ragResult.sources];
+  if (graphResult.recommendations.length > 0) {
+    sourcesUpdate.push(CITATION_SOURCES.CLINICAL_GRAPH);
+  }
+
+  return {
+    ragResult,
+    graphRecommendations: graphResult.recommendations,
+    sources: sourcesUpdate,
+    agentPath: ["Web Search", "GraphDB Lookup"],
+  };
+}
+
+async function questionRagNode(state: typeof OrchestratorState.State) {
+  const settings = await getCachedLlmSettings();
+  const contextText = [
+    ...state.ragResult.context,
+    ...(state.graphRecommendations.length > 0 ? ["Clinical DB matches:", ...state.graphRecommendations] : []),
+  ].join("\\n\\n");
+
+  const lang = resolveResponseLanguage(state.request.message, state.request.profile?.preferredLanguage ?? null);
+  const systemPrompt = \`You are an objective nutrition and health assistant. 
+Answer the user's factual question based ONLY on the provided context. 
+If the context contains no relevant information, state that you do not have enough information to answer. 
+Always cite sources inline (e.g., "According to [Source Title], ...").
+\${responseLanguageInstruction(lang)}\`;
+
+  const userPrompt = \`Context:\\n\${contextText}\\n\\nQuestion: \${state.request.message}\`;
+
+  const reply = await openRouterChat({
+    apiKey: settings.openRouterApiKey,
+    model: settings.ragModel || "openai/gpt-4o",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+  });
+
+  const response: OrchestratorResponse = {
+    intent: state.intent,
+    reply: reply || "I could not generate an answer.",
+    sources: uniqueCitationSources(state.sources),
+    agentPath: state.agentPath.concat(["RAG Generator"]),
+  };
+
+  return { response, agentPath: ["RAG Generator"] };
+}
+
+async function questionCacheSaveNode(state: typeof OrchestratorState.State) {
+  if (state.questionEmbedding && state.response?.reply) {
+    const isPersonal = state.request.message.toLowerCase().includes("my") || state.request.message.toLowerCase().includes("i ");
+    const userId = isPersonal ? (state.request.userId || null) : null;
+
+    try {
+      const embeddingLiteral = \`[\${state.questionEmbedding.join(",")}]\`;
+      await prisma.$executeRaw\`
+        INSERT INTO cached_answers (user_id, question, answer, embedding)
+        VALUES (
+          \${userId},
+          \${state.request.message},
+          \${state.response.reply},
+          \${embeddingLiteral}::vector
+        );
+      \`;
+    } catch (err) {
+      console.warn("Failed to save to cached_answers", err);
+    }
+  }
+  return {};
+}
+
+
+// ---------------------------------------------------------------------------
+// BRANCH 2: VISION (Meal Analysis)
+// ---------------------------------------------------------------------------
+
+async function visionAnalyzeNode(state: typeof OrchestratorState.State) {
+  const visionResult = await callAgentWithTimeout<VisionAnalyzeResponse>(
+    \`\${VISION_URL}/analyze\`,
+    {
+      imageBase64: state.request.imageBase64,
+      imageMime: state.request.imageMime,
+      message: state.request.message,
+      ragContext: [], // Not using RAG in vision branch for now
+    },
+    CHAT_AGENT_TIMEOUT_MS
+  );
+  
+  const agentPathUpdate = [
+    "Vision Agent (Gemini 2.5 Flash)",
+    \`Vision Reranker (\${visionResult.rerankModel ?? "cohere/rerank-4-fast"})\`
+  ];
+  
+  const sourcesUpdate = visionResult.modelResults.map((m) => m.modelLabel);
+  
+  if (isEmptyVisionDetection(visionResult)) {
+    const response = buildNoFoodDetectedResponse({
+      vision: visionResult,
+      ragSourceLabels: state.sources.concat(sourcesUpdate),
+      agentPath: state.agentPath.concat(agentPathUpdate),
+      preferredLanguage: state.request.profile?.preferredLanguage,
+    });
+    return { visionResult, agentPath: agentPathUpdate, sources: sourcesUpdate, response };
+  }
+  
+  const realRerankedItems = filterRealFoodItems(visionResult.rerankedItems);
+  visionResult.rerankedItems = realRerankedItems;
+  visionResult.modelResults = visionResult.modelResults.map((mr) => ({
+    ...mr,
+    items: filterRealFoodItems(mr.items),
+  }));
+  
+  return { visionResult, agentPath: agentPathUpdate, sources: sourcesUpdate };
+}
+
+async function nutritionCalculateNode(state: typeof OrchestratorState.State) {
+  async function calc(items: VisionFoodItem[]): Promise<NutritionCalc | null> {
+    if (!items.length) return null;
+    return callAgentWithTimeout<NutritionCalc>(\`\${NUTRITION_URL}/calculate\`, {
+      items,
+      profile: state.request.profile,
+      ragContext: [],
+    }, CHAT_AGENT_TIMEOUT_MS);
+  }
+
+  const panelCalcs = await Promise.all(
+    state.visionResult.modelResults.map(async (mr) => ({
+      mr,
+      calc: mr.items.length ? await calc(mr.items) : null,
+    }))
+  );
+
+  const rerankerCalc = await calc(state.visionResult.rerankedItems);
+  if (!rerankerCalc) {
+    throw new Error("Nutrition agent returned no data for non-empty vision items");
+  }
+
+  return {
+    rerankerCalc,
+    panelCalcs,
+    agentPath: ["Nutrition Agent"],
+    sources: rerankerCalc.sources,
+  };
+}
+
+async function saveMealNode(state: typeof OrchestratorState.State) {
+  const mealId = await saveMeal(
+    state.request.userId,
+    state.rerankerCalc.items,
+    state.request.imageUrl ?? state.request.mealImage?.displayUrl,
+    state.request.mealImage,
+    buildVisionModelVersion(state.visionResult)
+  );
+  
+  const panels: MultiModelMealAnalysis["panels"] = state.panelCalcs.map(({ mr, calc: c }) => ({
+    modelId: mr.modelId,
+    modelLabel: mr.modelLabel,
+    items: c?.items ?? [],
+    totalNutrition: c?.totalNutrition ?? { calories: 0, protein: 0, fat: 0, carbs: 0, sugar: 0 },
+    error: mr.error ?? (c ? undefined : "No items detected"),
+  }));
+
+  panels.push({
+    modelId: "reranker",
+    modelLabel: rerankerPanelLabel(state.visionResult),
+    items: state.rerankerCalc.items,
+    totalNutrition: state.rerankerCalc.totalNutrition,
+  });
+
+  const mealDescription = buildMealDescription({
+    items: state.visionResult.rerankedItems,
+    fusionMethod: state.visionResult.fusionMethod,
+    preferredLanguage: state.request.profile?.preferredLanguage,
+  });
+
+  const multiModelMealAnalysis: MultiModelMealAnalysis = {
+    items: state.rerankerCalc.items,
+    totalNutrition: state.rerankerCalc.totalNutrition,
+    summary: state.rerankerCalc.summary,
+    mealDescription,
+    sources: uniqueCitationSources(state.sources),
+    panels,
+    rerankerScores: state.visionResult.rerankerScores,
+    rerankModel: state.visionResult.rerankModel,
+    fusionMethod: state.visionResult.fusionMethod,
+    fallbackModelLabel: state.visionResult.fallbackModelLabel,
+  };
+
+  const isHe = state.request.profile?.preferredLanguage === "he";
+  const isRu = state.request.profile?.preferredLanguage === "ru";
+  
+  const msgAnalyzed = isHe ? "✅ הארוחה נותחה על ידי Gemini 2.5 Flash + מדרג מחדש!" : isRu ? "✅ Прием пищи проанализирован Gemini 2.5 Flash + reranker!" : "✅ Meal analyzed by Gemini 2.5 Flash + reranker!";
+  const msgSeeDetection = isHe ? "ראו את זיהוי Gemini ותוצאות הדירוג למטה." : isRu ? "Результаты распознавания Gemini и ранжирования ниже." : "See Gemini detection and reranker result below.";
+  
+  const reply = [
+    msgAnalyzed,
+    "",
+    mealDescription,
+    "",
+    state.rerankerCalc.summary,
+    "",
+    msgSeeDetection,
+    "",
+    ...state.rerankerCalc.items.map(
+      (i) => \`• \${i.foodType} (\${i.estimatedQuantity}): \${i.nutrition.calories} kcal\`
+    ),
+    "",
+    ...(state.rerankerCalc.warnings.length ? state.rerankerCalc.warnings.map((w) => \`⚠️ \${w}\`) : []),
+  ].join("\\n");
+
+  const response: OrchestratorResponse = {
+    intent: state.intent,
+    reply,
+    mealId,
+    mealAnalysis: {
+      items: state.rerankerCalc.items,
+      totalNutrition: state.rerankerCalc.totalNutrition,
+      sources: uniqueCitationSources(state.sources),
+      summary: state.rerankerCalc.summary,
+    },
+    multiModelMealAnalysis,
+    sources: uniqueCitationSources(state.sources),
+    agentPath: state.agentPath,
+  };
+  
+  return { mealId, response };
+}
+
+
+// ---------------------------------------------------------------------------
+// BRANCH 3: TEXT2SQL (History Query)
+// ---------------------------------------------------------------------------
+
+async function text2sqlNode(state: typeof OrchestratorState.State) {
+  const historyResult = await callAgentWithTimeout<{ answer: string; rowCount: number }>(
+    \`\${TEXT2SQL_URL}/query\`, 
+    {
+      userId: state.request.userId,
+      question: state.request.message,
+      preferredLanguage: state.request.profile?.preferredLanguage,
+    }, 
+    CHAT_AGENT_TIMEOUT_MS
+  );
+  
+  const sourcesUpdate = [CITATION_SOURCES.MEAL_HISTORY];
+  
+  const response: OrchestratorResponse = {
+    intent: state.intent,
+    reply: historyResult.answer,
+    sources: uniqueCitationSources(state.sources.concat(sourcesUpdate)),
+    agentPath: state.agentPath.concat(["Text2SQL Agent"]),
+  };
+  
+  return { response, agentPath: ["Text2SQL Agent"], sources: sourcesUpdate };
+}
+
+
+// ---------------------------------------------------------------------------
+// BRANCH 4: GENERAL CHAT (Conversational / Advice)
+// ---------------------------------------------------------------------------
+
+async function ragRetrieveGeneralNode(state: typeof OrchestratorState.State) {
+  let ragResult: RagRetrieveResult = { context: [], sources: [] };
+  let agentPathUpdate: string[] = [];
+  try {
+    ragResult = await callAgentWithTimeout<RagRetrieveResult>(
+      \`\${RAG_URL}/retrieve\`,
+      {
+        query: state.request.message,
+        topK: 3,
+        profile: state.request.profile,
+        // No web fallback for general chat by default (can be changed if desired)
+      },
+      CHAT_AGENT_TIMEOUT_MS
+    );
+    if (ragResult.sources.length) {
+      agentPathUpdate.push("RAG Agent (/retrieve)");
+    }
+  } catch (err) {
+    console.warn("General: RAG retrieve failed, continuing without context:", err);
+  }
+  return { ragResult, agentPath: agentPathUpdate, sources: ragResult.sources };
+}
+
+async function graphdbAdviceNode(state: typeof OrchestratorState.State) {
+  const graphResult = await callAgentWithTimeout<{ recommendations: string[]; safeFoods: string[] }>(
+    \`\${GRAPHDB_URL}/recommend\`,
+    { profile: state.request.profile, foodQuery: state.request.message },
+    CHAT_AGENT_TIMEOUT_MS
+  );
+  return { graphRecommendations: graphResult.recommendations, agentPath: ["GraphDB Agent"] };
+}
+
+async function nutritionAdviseNode(state: typeof OrchestratorState.State) {
+  const adviceResult = await callAgentWithTimeout<{ reply: string; sources: string[] }>(
+    \`\${NUTRITION_URL}/advise\`, 
+    {
+      message: state.request.message,
+      profile: state.request.profile,
+      context: [...(state.ragResult?.context ?? []), ...(state.graphRecommendations ?? [])],
+    }, 
+    CHAT_AGENT_TIMEOUT_MS
+  );
+  
+  const sourcesUpdate = adviceResult.sources.concat([CITATION_SOURCES.CLINICAL_GRAPH]);
+  
+  const isHe = state.request.profile?.preferredLanguage === "he";
+  const isRu = state.request.profile?.preferredLanguage === "ru";
+  const msgSafeChoices = isHe ? "בחירות בטוחות לפי הפרופיל שלך:" : isRu ? "Безопасные варианты согласно вашему профилю:" : "Safe choices based on your profile:";
+
+  const reply = [
+    adviceResult.reply,
+    "",
+    ...(state.graphRecommendations?.length
+      ? [msgSafeChoices, ...state.graphRecommendations.map((r) => \`• \${r}\`)]
+      : []),
+  ].join("\\n");
+  
+  const response: OrchestratorResponse = {
+    intent: state.intent,
+    reply,
+    sources: uniqueCitationSources(state.sources.concat(sourcesUpdate)),
+    agentPath: state.agentPath.concat(["Nutrition Agent"]),
+  };
+  
+  return { response, agentPath: ["Nutrition Agent"], sources: sourcesUpdate };
+}
+
+// ---------------------------------------------------------------------------
+// WORKFLOW COMPILATION
+// ---------------------------------------------------------------------------
+
+const workflow = new StateGraph(OrchestratorState)
+  .addNode("classifyIntent", classifyIntentNode)
+  
+  // Branch 1: Question
+  .addNode("questionEmbed", questionEmbedNode)
+  .addNode("questionCacheCheck", questionCacheCheckNode)
+  .addNode("questionSearch", questionSearchNode)
+  .addNode("questionRag", questionRagNode)
+  .addNode("questionCacheSave", questionCacheSaveNode)
+
+  // Branch 2: Vision
+  .addNode("visionAnalyze", visionAnalyzeNode)
+  .addNode("nutritionCalculate", nutritionCalculateNode)
+  .addNode("saveMeal", saveMealNode)
+
+  // Branch 3: Text2SQL
+  .addNode("text2sql", text2sqlNode)
+
+  // Branch 4: General Chat
+  .addNode("ragRetrieveGeneral", ragRetrieveGeneralNode)
+  .addNode("graphdbAdvice", graphdbAdviceNode)
+  .addNode("nutritionAdvise", nutritionAdviseNode)
+  
+  .addEdge(START, "classifyIntent")
+  .addConditionalEdges("classifyIntent", (state) => {
+    switch (state.intent) {
+      case "question": return "questionEmbed";
+      case "meal_analysis": return "visionAnalyze";
+      case "history_query": return "text2sql";
+      default: return "ragRetrieveGeneral";
+    }
+  })
+
+  // Path 1
+  .addEdge("questionEmbed", "questionCacheCheck")
+  .addConditionalEdges("questionCacheCheck", (state) => {
+    if (state.response) return END; // Cache hit
+    return "questionSearch";
+  })
+  .addEdge("questionSearch", "questionRag")
+  .addEdge("questionRag", "questionCacheSave")
+  .addEdge("questionCacheSave", END)
+
+  // Path 2
+  .addConditionalEdges("visionAnalyze", (state) => {
+    if (state.response) return END; // No food detected
+    return "nutritionCalculate";
+  })
+  .addEdge("nutritionCalculate", "saveMeal")
+  .addEdge("saveMeal", END)
+  
+  // Path 3
+  .addEdge("text2sql", END)
+  
+  // Path 4
+  .addEdge("ragRetrieveGeneral", "graphdbAdvice")
+  .addEdge("graphdbAdvice", "nutritionAdvise")
+  .addEdge("nutritionAdvise", END);
+
+export const orchestratorGraph = workflow.compile();
+`;
+fs.writeFileSync('c:\\Users\\nik\\Desktop\\nikol\\COURSE_JOHN_BRYCE\\NuitriAgent AI\\services\\orchestrator\\src\\graph.ts', code, 'utf8');
