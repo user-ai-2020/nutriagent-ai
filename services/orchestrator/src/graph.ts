@@ -42,6 +42,12 @@ type NutritionCalc = {
 
 type RagRetrieveResult = { context: string[]; sources: string[]; matchScore?: number };
 
+/**
+ * Below this top-item vision confidence the meal photo is treated as ambiguous and
+ * the graph interrupts to ask the user a clarifying question (spec: "confidence < 40%").
+ */
+const VISION_CLARIFY_CONFIDENCE = Number(process.env.VISION_CLARIFY_CONFIDENCE ?? 0.4);
+
 export const OrchestratorState = Annotation.Root({
   request: Annotation<OrchestratorRequest & { imageUrl?: string; imageMime?: string; imageBase64?: string }>(),
   intent: Annotation<ChatIntent>(),
@@ -340,14 +346,22 @@ export async function visionClusterCheckNode(
   if (!rerankedItems || rerankedItems.length === 0) return {};
 
   const topConfidence = rerankedItems[0].visionConfidence ?? 1.0;
-  const isLowConfidence = topConfidence < 0.40;
-  const hasMultipleItems = rerankedItems.length >= 2;
+  const isLowConfidence = topConfidence < VISION_CLARIFY_CONFIDENCE;
 
-  if (isLowConfidence || hasMultipleItems) {
-    let conditionMessage = isLowConfidence 
-      ? "I wasn't completely sure what this was." 
+  // Only genuinely uncertain photos pause to ask. A previous `rerankedItems.length >= 2`
+  // trigger fired on almost every real photo (a plate virtually always has 2+ items),
+  // so every meal stopped for a clarifying question before showing any analysis.
+  // A crowded plate is not the same as an ambiguous one — the spec's trigger is
+  // "2+ distinct meals", which item count does not measure. Set
+  // VISION_CLARIFY_MAX_ITEMS to re-enable an item-count trigger for busy photos.
+  const maxItems = Number(process.env.VISION_CLARIFY_MAX_ITEMS ?? 0);
+  const hasTooManyItems = maxItems > 0 && rerankedItems.length >= maxItems;
+
+  if (isLowConfidence || hasTooManyItems) {
+    let conditionMessage = isLowConfidence
+      ? "I wasn't completely sure what this was."
       : "I noticed multiple items in this photo.";
-    
+
     // Interrupt and wait for user's clarification
     const answer = interrupt(`I need some clarification: ${conditionMessage} What time did you eat this? Was it just this item, or something else too?`);
 
