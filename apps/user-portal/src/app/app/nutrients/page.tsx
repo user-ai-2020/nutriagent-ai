@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { muted, serif } from "@/lib/ui";
 import { Segmented } from "@/components/Segmented";
-import { useDashboard, useMeal } from "@/hooks/queries";
+import { toDateKey, useDashboard, useMeal } from "@/hooks/queries";
 
 interface Totals {
   calories: number;
@@ -107,12 +107,15 @@ function NutrientCard({
   value,
   unit,
   badge,
+  badgeTitle,
   children,
 }: {
   label: string;
   value: number;
   unit: string;
   badge?: string;
+  /** Explains what the badge percentage is measured against (daily vs weekly goal). */
+  badgeTitle?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -121,6 +124,7 @@ function NutrientCard({
         <span style={{ fontSize: 12, color: muted(60) }}>{label}</span>
         {badge && (
           <span
+            title={badgeTitle}
             style={{
               fontSize: 10.5,
               fontWeight: 700,
@@ -128,6 +132,7 @@ function NutrientCard({
               color: "var(--color-accent-700)",
               padding: "2px 8px",
               borderRadius: 10,
+              cursor: badgeTitle ? "help" : undefined,
             }}
           >
             {badge}
@@ -159,7 +164,9 @@ export default function NutrientsPage() {
     if (id) setSelectedMealId(Number(id));
   }, []);
 
-  const { data, error, isFetching } = useDashboard("week");
+  // useDashboard takes (dateKey, period) — passing "week" alone sent it as the
+  // date and the API answered 400 "Invalid date; use YYYY-MM-DD".
+  const { data, error, isFetching } = useDashboard(toDateKey(), "week");
   const { data: mealData } = useMeal(selectedMealId);
 
   useEffect(() => {
@@ -213,6 +220,7 @@ export default function NutrientsPage() {
   const goalCalories = data.goals.dailyCalories || 2200;
   const goalProtein = data.goals.proteinGrams || 130;
   const scopeGoalCalories = scope === "period" ? goalCalories * 7 : goalCalories;
+  const caloriePct = Math.min(100, Math.round((totals.calories / scopeGoalCalories) * 100));
 
   const proteinKcal = totals.protein * 4;
   const fatKcal = totals.fat * 9;
@@ -248,7 +256,14 @@ export default function NutrientsPage() {
           label={t("nutrients.calories")}
           value={totals.calories}
           unit="kcal"
-          badge={`${Math.min(100, Math.round((totals.calories / scopeGoalCalories) * 100))}%`}
+          badge={`${caloriePct}%`}
+          // The same kcal reads as a very different % depending on scope (a meal
+          // against one day vs a week against seven), so spell out the denominator.
+          badgeTitle={
+            scope === "period"
+              ? t("nutrients.percentOfWeeklyGoal", { pct: caloriePct, goal: scopeGoalCalories })
+              : t("nutrients.percentOfDailyGoal", { pct: caloriePct, goal: scopeGoalCalories })
+          }
         >
           <Sparkline values={week.map((d) => d.calories)} color="#2e9e5b" />
         </NutrientCard>

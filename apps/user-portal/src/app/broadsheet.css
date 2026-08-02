@@ -459,7 +459,17 @@ select.input {
   overflow-x: hidden;
 }
 
+/* Mirror the page content, but not the scroll container: applying `direction: rtl`
+   to .na-main moved its scrollbar to the left edge, so switching language visibly
+   shifted the whole frame. Keeping .na-main LTR pins the scrollbar to the right in
+   every language while .na-screen still lays its content out right-to-left. */
 [dir="rtl"] .na-main {
+  direction: ltr;
+}
+
+[dir="rtl"] .na-screen,
+[dir="rtl"] .na-mobile-topbar,
+[dir="rtl"] .na-tabbar {
   direction: rtl;
 }
 

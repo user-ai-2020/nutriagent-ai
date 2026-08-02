@@ -507,6 +507,12 @@ async function saveMealNode(state: typeof OrchestratorState.State) {
     rerankModel: state.visionResult.rerankModel,
     fusionMethod: state.visionResult.fusionMethod,
     fallbackModelLabel: state.visionResult.fallbackModelLabel,
+    // Structured pieces the client needs to re-render this message in whatever
+    // language is active later (the `reply` string below is frozen in the language
+    // it was generated in), plus the photo so history can show its thumbnail.
+    imageUrl: state.request.imageUrl ?? state.request.mealImage?.displayUrl,
+    warnings: state.rerankerCalc.warnings,
+    tips: state.graphRecommendations ?? [],
   };
 
   const isHe = state.request.profile?.preferredLanguage === "he";
@@ -607,12 +613,21 @@ async function ragRetrieveGeneralNode(state: typeof OrchestratorState.State) {
 }
 
 async function graphdbAdviceNode(state: typeof OrchestratorState.State) {
+  // GraphDB adds clinical safety tips on top of the answer — useful, but not
+  // required to reply. An unreachable/erroring agent used to reject here, failing
+  // the whole graph run so the user saw "AI services are unavailable" instead of
+  // advice. Degrade to no tips, matching graphdbMealNode on the vision path.
   const graphResult = await callAgentWithTimeout<{ recommendations: string[]; safeFoods: string[] }>(
     `${GRAPHDB_URL}/recommend`,
     { profile: state.request.profile, foodQuery: state.request.message },
     CHAT_AGENT_TIMEOUT_MS
-  );
-  return { graphRecommendations: graphResult.recommendations, agentPath: ["GraphDB Agent"] };
+  ).catch((err) => {
+    console.warn("General: GraphDB recommend failed, continuing without tips:", err);
+    return { recommendations: [], safeFoods: [] };
+  });
+
+  const agentPathUpdate = graphResult.recommendations.length > 0 ? ["GraphDB Agent"] : [];
+  return { graphRecommendations: graphResult.recommendations, agentPath: agentPathUpdate };
 }
 
 async function nutritionAdviseNode(state: typeof OrchestratorState.State) {
@@ -626,8 +641,13 @@ async function nutritionAdviseNode(state: typeof OrchestratorState.State) {
     CHAT_AGENT_TIMEOUT_MS
   );
   
-  const sourcesUpdate = adviceResult.sources.concat([CITATION_SOURCES.CLINICAL_GRAPH]);
-  
+  // Only cite the clinical graph when it actually contributed — it may have been
+  // unreachable, and citing a source that fed nothing into the answer is misleading.
+  const sourcesUpdate = state.graphRecommendations?.length
+    ? adviceResult.sources.concat([CITATION_SOURCES.CLINICAL_GRAPH])
+    : adviceResult.sources;
+
+
   const isHe = state.request.profile?.preferredLanguage === "he";
   const isRu = state.request.profile?.preferredLanguage === "ru";
   const msgSafeChoices = isHe ? "בחירות בטוחות לפי הפרופיל שלך:" : isRu ? "Безопасные варианты согласно вашему профилю:" : "Safe choices based on your profile:";

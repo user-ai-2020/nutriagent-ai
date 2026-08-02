@@ -8,7 +8,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
 import { api } from "./api";
 import { useAuth } from "./auth";
 import {
@@ -45,7 +44,6 @@ interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [preferredLanguage, setPreferredLanguageState] = useState<ResponseLanguage>("en");
   const [ready, setReady] = useState(false);
@@ -98,9 +96,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ preferredLanguage: lang }),
       });
     }
+    // persistLanguagePreference already calls syncDocumentDirection, so <html lang/dir>
+    // and the cookie are updated synchronously and i18next re-renders the tree with the
+    // new strings. router.refresh() used to run here as well, re-fetching the RSC payload
+    // and remounting everything — a visible flash/reflow of the whole app for a change
+    // the client had already applied. The cookie still drives SSR on the next full load.
     persistLanguagePreference(lang);
     setPreferredLanguageState(lang);
-    router.refresh();
   }
 
   return (

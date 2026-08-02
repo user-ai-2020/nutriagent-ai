@@ -130,6 +130,12 @@ export interface MultiModelMealAnalysis {
   rerankModel?: string;
   fusionMethod?: FusionMethod;
   fallbackModelLabel?: string;
+  /** Stored meal photo, so a chat reopened from history can show its thumbnail. */
+  imageUrl?: string;
+  /** Nutrition-agent caveats (e.g. wide spread between models). */
+  warnings?: string[];
+  /** Clinical-graph safety tips for this meal. */
+  tips?: string[];
 }
 
 export interface VisionAnalyzeResponse {

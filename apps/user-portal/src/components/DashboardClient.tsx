@@ -135,7 +135,7 @@ export function DashboardClient() {
   const canGoNext = weekStart.getTime() < currentWeekStart.getTime();
   const onCurrentWeek = weekStart.getTime() === currentWeekStart.getTime();
 
-  const { data, isFetching: refreshing } = useDashboard(selectedKey, period);
+  const { data } = useDashboard(selectedKey, period);
 
   const weekDays = useMemo(
     () =>
@@ -207,7 +207,11 @@ export function DashboardClient() {
   ];
 
   return (
-    <div style={{ width: "100%", opacity: refreshing ? 0.72 : 1, transition: "opacity 0.15s" }}>
+    // Previously dimmed the whole dashboard to 0.72 while refetching. Combined with
+    // react-query keeping the previous day's data, that read as the page blinking on
+    // every date change. The date pill already shows which day is selected, so the
+    // refresh stays silent rather than flashing the entire view.
+    <div style={{ width: "100%" }}>
       <div
         style={{
           display: "flex",

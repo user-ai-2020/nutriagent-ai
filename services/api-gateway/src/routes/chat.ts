@@ -3,9 +3,9 @@ import multer from "multer";
 import path from "path";
 import os from "os";
 import fs from "fs";
-import { createId } from "@nutriagent/shared";
+import { createId, openRouterChat } from "@nutriagent/shared";
 import { z } from "zod";
-import { prisma, Prisma } from "@nutriagent/db";
+import { prisma, Prisma, getCachedLlmSettings } from "@nutriagent/db";
 import {
   AUDIT_ACTIONS,
   createImageStorage,
@@ -101,6 +101,96 @@ chatRouter.get("/sessions", async (req: AuthRequest, res, next) => {
         preview: s.messages[0]?.content ?? null,
       })),
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: "English",
+  he: "Hebrew",
+  ru: "Russian",
+};
+
+/**
+ * Translates stored chat messages into the language the user is currently using.
+ * Past messages are frozen in the language the AI wrote them in; templated meal
+ * results are re-rendered client-side from structured data, but free-form advice
+ * needs a model. Results are cached on the row (`analysis.translations[lang]`) so
+ * each message costs at most one call per language.
+ */
+chatRouter.post("/translate", async (req: AuthRequest, res, next) => {
+  try {
+    const { messageIds, targetLanguage } = req.body as {
+      messageIds?: unknown;
+      targetLanguage?: unknown;
+    };
+
+    const lang = typeof targetLanguage === "string" ? targetLanguage : "";
+    if (!LANGUAGE_NAMES[lang]) {
+      return res.status(400).json({ error: "targetLanguage must be one of en, he, ru" });
+    }
+    const ids = Array.isArray(messageIds)
+      ? messageIds.map(Number).filter((n) => Number.isInteger(n)).slice(0, 50)
+      : [];
+    if (!ids.length) return res.json({ translations: {} });
+
+    // userId in the filter: never translate (or reveal) another user's messages.
+    const rows = await prisma.chatHistory.findMany({
+      where: { userId: req.user!.userId, messageId: { in: ids } },
+      select: { messageId: true, content: true, analysis: true },
+    });
+
+    const settings = await getCachedLlmSettings();
+    const translations: Record<number, string> = {};
+
+    for (const row of rows) {
+      const stored = (row.analysis ?? {}) as Record<string, any>;
+      const cached = stored.translations?.[lang];
+      if (typeof cached === "string") {
+        translations[row.messageId] = cached;
+        continue;
+      }
+      if (!row.content?.trim()) continue;
+
+      try {
+        const translated = await openRouterChat({
+          apiKey: settings.openRouterApiKey,
+          model: settings.chatModel,
+          messages: [
+            {
+              role: "system",
+              content:
+                `Translate the user's message into ${LANGUAGE_NAMES[lang]}. ` +
+                `Reply with ONLY the translation — no preamble, no quotes. ` +
+                `Preserve line breaks, bullet characters, emoji, numbers and units exactly. ` +
+                `Leave food names, brand names and model names untranslated if they have no common translation. ` +
+                `If the text is already in ${LANGUAGE_NAMES[lang]}, return it unchanged.`,
+            },
+            { role: "user", content: row.content },
+          ],
+        });
+
+        if (!translated?.trim()) continue;
+        translations[row.messageId] = translated;
+
+        // Cache alongside the message so repeat views are free.
+        await prisma.chatHistory.update({
+          where: { messageId: row.messageId },
+          data: {
+            analysis: {
+              ...stored,
+              translations: { ...(stored.translations ?? {}), [lang]: translated },
+            } as Prisma.InputJsonValue,
+          },
+        });
+      } catch (err) {
+        console.warn(`Translation failed for message ${row.messageId}:`, err);
+        // Best-effort: skip this message, keep the rest.
+      }
+    }
+
+    res.json({ translations });
   } catch (err) {
     next(err);
   }

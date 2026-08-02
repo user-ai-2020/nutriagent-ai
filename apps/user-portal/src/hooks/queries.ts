@@ -1,5 +1,14 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+
+/** Local (not UTC) YYYY-MM-DD — toISOString() would shift the day for anyone
+ *  behind UTC and land the dashboard on the wrong date. */
+export function toDateKey(d: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // Centralized query keys
 export const queryKeys = {
@@ -12,9 +21,18 @@ export const queryKeys = {
 // --- Queries ---
 
 export function useDashboard(dateKey: string, period: "day" | "week" | "month" = "week") {
+  // Guard against a non-date being passed positionally (the period and date args
+  // are easy to swap); the API rejects anything that isn't YYYY-MM-DD with a 400
+  // that surfaces as a full-page "Invalid date" error.
+  const safeDateKey = DATE_KEY_RE.test(dateKey) ? dateKey : toDateKey();
+
   return useQuery({
-    queryKey: queryKeys.dashboard(dateKey, period),
-    queryFn: () => api<any>(`/api/dashboard?period=${period}&date=${dateKey}`),
+    queryKey: queryKeys.dashboard(safeDateKey, period),
+    queryFn: () => api<any>(`/api/dashboard?period=${period}&date=${safeDateKey}`),
+    // Keep showing the previous day/period while the next one loads. Without this
+    // the data goes undefined on every change and the whole dashboard unmounts and
+    // remounts — the visible "blink" when stepping through days.
+    placeholderData: keepPreviousData,
   });
 }
 

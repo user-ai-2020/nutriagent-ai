@@ -17,9 +17,11 @@ node_modules
 # Build artifacts (rebuilt inside the container)
 dist
 .next
+.next-dev
 build
 **/dist
 **/.next
+**/.next-dev
 **/build
 
 # Local dev artifacts (must not land in images as root-owned dirs)

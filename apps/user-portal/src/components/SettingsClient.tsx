@@ -58,6 +58,8 @@ export function SettingsClient() {
     <div className="na-screen">
       <h2 style={{ fontSize: 22, margin: "0 0 var(--space-5)" }}>{t("settings.title")}</h2>
 
+      {/* No inline margin: the column sits at the inline-start edge, so it follows the
+          reading direction — left in English/Russian, right in Hebrew. */}
       <div style={{ maxWidth: 420 }}>
         <p className="note" style={{ margin: "0 0 var(--space-5)" }}>
           {user?.name} · {user?.email}

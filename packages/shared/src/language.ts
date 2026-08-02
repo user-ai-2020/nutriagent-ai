@@ -74,7 +74,11 @@ export function responseLanguageInstruction(lang: ResponseLanguage): string {
       "Do not mix languages, regardless of the source content language. " +
       "YOU MUST TRANSLATE all meal types and food names into Russian. " +
       "Всегда отвечай только на русском языке, даже если источники на английском, иврите или любом другом языке. " +
-      "Переводи термины питания/медицины на русский; числа и научные названия оставляй как есть."
+      "Переводи термины питания/медицины на русский; числа и научные названия оставляй как есть. " +
+      // Machine-translated replies were coming back with agreement errors
+      // (e.g. «сбалансированное перекус» instead of «сбалансированный перекус»).
+      "Пиши грамматически правильно: соблюдай род, число и падеж, согласуй прилагательные с существительными. " +
+      "Формулируй естественно, как носитель языка, а не дословным переводом с английского."
     );
   }
   return (

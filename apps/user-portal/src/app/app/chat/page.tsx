@@ -11,6 +11,7 @@ import { MultiModelMealCards } from "@/components/MultiModelMealCards";
 import { FlowerMacro, NutritionFlower } from "@/components/NutritionFlower";
 import { NutritionHistoryChart, NutritionHistoryData } from "@/components/NutritionHistoryChart";
 import { useProfile, useInvalidateMealData } from "@/hooks/queries";
+import { useLanguage } from "@/lib/language";
 import { resizeImage } from "@/lib/imageUtils";
 import { PlusIcon } from "@/components/icons";
 
@@ -23,6 +24,58 @@ const GOAL_SUGAR = 50;
 function mealReplyWithoutDescription(reply: string, mealDescription?: string): string {
   if (!mealDescription) return reply;
   return reply.replace(`${mealDescription}\n\n`, "").replace(`${mealDescription}\n`, "");
+}
+
+/**
+ * Rebuilds a meal-analysis message from its structured data in the CURRENT UI
+ * language. The stored `reply` string is frozen in whatever language was active
+ * when the AI produced it, so a chat reopened after switching languages would
+ * otherwise show yesterday's language. Everything here is templated (item list,
+ * totals, item lines), so it re-renders exactly — only agent-authored warnings and
+ * clinical tips stay in their original language, since they are free text.
+ * Returns null when there isn't enough structured data (older stored messages).
+ */
+function localizedMealText(
+  msg: {
+    items?: Array<{ foodType: string; estimatedQuantity: string; nutrition?: Nutrition }>;
+    totalNutrition?: Nutrition;
+    warnings?: string[];
+    tips?: string[];
+  },
+  t: (key: string, opts?: Record<string, unknown>) => string
+): string | null {
+  const items = msg.items ?? [];
+  if (!items.length || !msg.totalNutrition) return null;
+
+  const itemList = items.map((i) => `${i.foodType} (${i.estimatedQuantity})`).join(", ");
+  const n = msg.totalNutrition;
+
+  return [
+    t("chat.mealAnalyzedTitle"),
+    "",
+    items.length === 1
+      ? t("chat.mealDescriptionSingle", { items: itemList })
+      : t("chat.mealDescriptionMultiple", { count: items.length, items: itemList }),
+    "",
+    t("chat.mealTotals", {
+      kcal: Math.round(n.calories),
+      protein: Math.round(n.protein),
+      carbs: Math.round(n.carbs),
+      fat: Math.round(n.fat),
+    }),
+    "",
+    t("chat.seeDetectionBelow"),
+    "",
+    ...items.map((i) =>
+      t("chat.mealItemLine", {
+        food: i.foodType,
+        qty: i.estimatedQuantity,
+        kcal: Math.round(i.nutrition?.calories ?? 0),
+      })
+    ),
+    ...(msg.warnings?.length ? ["", ...msg.warnings.map((w) => `⚠️ ${w}`)] : []),
+    ...(msg.tips?.length ? ["", ...msg.tips.map((r) => `💡 ${r}`)] : []),
+  ].join("\n");
 }
 
 function ragReplyBody(text: string): string {
@@ -85,7 +138,9 @@ interface StoredChatMessage {
 /** Rebuild a rendered chat message from a persisted row. Mirrors the branching
  *  used for a live response so history looks identical to the original turn. */
 function storedMessageToMsg(m: StoredChatMessage, fallbackName: string): Msg {
-  if (m.role === "user") return { kind: "text", from: "user", text: m.content };
+  if (m.role === "user") {
+    return { kind: "text", from: "user", text: m.content, messageId: m.messageId };
+  }
 
   const analysis = m.analysis ?? undefined;
   const sources = m.sources ?? undefined;
@@ -101,6 +156,11 @@ function storedMessageToMsg(m: StoredChatMessage, fallbackName: string): Msg {
       fusionMethod: mm.fusionMethod,
       fallbackModelLabel: mm.fallbackModelLabel,
       sources,
+      items: mm.items,
+      totalNutrition: mm.totalNutrition,
+      warnings: mm.warnings,
+      tips: mm.tips,
+      imageUrl: mm.imageUrl,
     };
   }
 
@@ -121,9 +181,11 @@ function storedMessageToMsg(m: StoredChatMessage, fallbackName: string): Msg {
     return { kind: "history", text: m.content, data: analysis.nutritionHistory, sources };
   }
 
-  if (sources?.length) return { kind: "rag", text: m.content, sources };
+  if (sources?.length) {
+    return { kind: "rag", text: m.content, sources, messageId: m.messageId };
+  }
 
-  return { kind: "text", from: "agent", text: m.content };
+  return { kind: "text", from: "agent", text: m.content, messageId: m.messageId };
 }
 
 function SourceTag({ src, t }: { src: CitationSource; t: any }) {
@@ -141,7 +203,11 @@ function SourceTag({ src, t }: { src: CitationSource; t: any }) {
 
 export default function ChatPage() {
   const { t } = useTranslation();
+  const { preferredLanguage } = useLanguage();
   const [messages, setMessages] = useState<Msg[]>([]);
+  // Messages already translated into a given language, so a second switch back and
+  // forth doesn't re-request them.
+  const translatedRef = useRef<Record<string, Set<number>>>({});
   const [draft, setDraft] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
@@ -199,6 +265,48 @@ export default function ChatPage() {
       console.warn("Failed to create new chat session", err);
     }
   }
+
+  // Translate stored messages whenever the active language changes. Meal results
+  // re-render locally from structured data, but free-form replies (advice, RAG
+  // answers) are frozen text — they need the model. Each message is translated at
+  // most once per language; the server caches the result on the row too.
+  useEffect(() => {
+    const seen = (translatedRef.current[preferredLanguage] ??= new Set<number>());
+    const pending = messages
+      .map((m) => ("messageId" in m ? m.messageId : undefined))
+      .filter((id): id is number => typeof id === "number" && !seen.has(id));
+
+    if (!pending.length) return;
+    pending.forEach((id) => seen.add(id));
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api<{ translations: Record<string, string> }>("/api/chat/translate", {
+          method: "POST",
+          body: JSON.stringify({ messageIds: pending, targetLanguage: preferredLanguage }),
+        });
+        if (cancelled) return;
+
+        const map = res.translations ?? {};
+        if (!Object.keys(map).length) return;
+
+        setMessages((prev) =>
+          prev.map((m) => {
+            const id = "messageId" in m ? m.messageId : undefined;
+            const translated = id !== undefined ? map[String(id)] : undefined;
+            return translated ? ({ ...m, text: translated } as Msg) : m;
+          })
+        );
+      } catch (err) {
+        console.warn("Could not translate chat history", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [preferredLanguage, messages]);
 
   async function toggleHistory() {
     if (historyOpen) {
@@ -277,6 +385,11 @@ export default function ChatPage() {
           }>;
           fusionMethod?: "full" | "cluster_no_rerank" | "single_model_only" | "single_model_fallback" | "empty_pool_fallback";
           fallbackModelLabel?: string;
+          items?: Array<{ foodType: string; estimatedQuantity: string; nutrition?: Nutrition }>;
+          totalNutrition?: Nutrition;
+          warnings?: string[];
+          tips?: string[];
+          imageUrl?: string;
         };
       };
 
@@ -336,6 +449,11 @@ export default function ChatPage() {
           fusionMethod: data.multiModelMealAnalysis.fusionMethod,
           fallbackModelLabel: data.multiModelMealAnalysis.fallbackModelLabel,
           sources: data.sources,
+          items: data.multiModelMealAnalysis.items,
+          totalNutrition: data.multiModelMealAnalysis.totalNutrition,
+          warnings: data.multiModelMealAnalysis.warnings,
+          tips: data.multiModelMealAnalysis.tips,
+          imageUrl: data.multiModelMealAnalysis.imageUrl,
         });
       } else if (data.multiModelMealAnalysis) {
         next.push({
@@ -347,6 +465,11 @@ export default function ChatPage() {
           fusionMethod: data.multiModelMealAnalysis.fusionMethod,
           fallbackModelLabel: data.multiModelMealAnalysis.fallbackModelLabel,
           sources: data.sources,
+          items: data.multiModelMealAnalysis.items,
+          totalNutrition: data.multiModelMealAnalysis.totalNutrition,
+          warnings: data.multiModelMealAnalysis.warnings,
+          tips: data.multiModelMealAnalysis.tips,
+          imageUrl: data.multiModelMealAnalysis.imageUrl,
         });
       } else if (data.mealAnalysis) {
         const confidences = data.mealAnalysis.items.map((i) => i.visionConfidence ?? 0);
@@ -552,6 +675,7 @@ export default function ChatPage() {
 
             {msg.kind === "text" && msg.from === "agent" && (
               <div
+                dir="auto"
                 style={{
                   maxWidth: "82%",
                   background: "var(--color-surface)",
@@ -604,6 +728,7 @@ export default function ChatPage() {
             {msg.kind === "rag" && (
               <div style={{ maxWidth: "82%", display: "flex", flexDirection: "column", gap: 8 }}>
                 <div
+                  dir="auto"
                   style={{
                     background: "var(--color-surface)",
                     padding: "10px 14px",
@@ -686,6 +811,7 @@ export default function ChatPage() {
             {msg.kind === "multiModel" && (
               <div style={{ maxWidth: "95%", display: "flex", flexDirection: "column", gap: 10 }}>
                 <div
+                  dir="auto"
                   style={{
                     background: "var(--color-surface)",
                     padding: "10px 14px",
@@ -695,20 +821,43 @@ export default function ChatPage() {
                     whiteSpace: "pre-wrap",
                   }}
                 >
-                  {msg.mealDescription ? (
-                    <p
-                      style={{
-                        margin: "0 0 10px",
-                        paddingBottom: 10,
-                        borderBottom: "1px solid var(--color-divider)",
-                        color: "var(--color-text, inherit)",
-                      }}
-                    >
-                      {msg.mealDescription}
-                    </p>
-                  ) : null}
-                  {mealReplyWithoutDescription(msg.text, msg.mealDescription)}
+                  {(() => {
+                    // Prefer the locale-rendered version so switching language also
+                    // updates messages already on screen / restored from history.
+                    const localized = localizedMealText(msg, t);
+                    if (localized) return localized;
+                    return (
+                      <>
+                        {msg.mealDescription ? (
+                          <p
+                            style={{
+                              margin: "0 0 10px",
+                              paddingBottom: 10,
+                              borderBottom: "1px solid var(--color-divider)",
+                              color: "var(--color-text, inherit)",
+                            }}
+                          >
+                            {msg.mealDescription}
+                          </p>
+                        ) : null}
+                        {mealReplyWithoutDescription(msg.text, msg.mealDescription)}
+                      </>
+                    );
+                  })()}
                 </div>
+
+                {msg.imageUrl ? (
+                  <img
+                    src={msg.imageUrl}
+                    alt={t("chat.mealPhotoAlt")}
+                    style={{
+                      maxWidth: 360,
+                      width: "100%",
+                      borderRadius: "var(--radius-lg)",
+                      display: "block",
+                    }}
+                  />
+                ) : null}
                 <MultiModelMealCards
                   panels={msg.panels}
                   rerankerScores={msg.rerankerScores}
@@ -730,6 +879,7 @@ export default function ChatPage() {
             {msg.kind === "history" && (
               <div style={{ maxWidth: "92%", display: "flex", flexDirection: "column", gap: 10 }}>
                 <div
+                  dir="auto"
                   style={{
                     background: "var(--color-surface)",
                     padding: "10px 14px",
