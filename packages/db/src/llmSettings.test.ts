@@ -15,18 +15,20 @@ describe("resolveOpenRouterApiKey via getLlmSettings", () => {
     const prisma = (await import("./client.js")).prisma;
 
     const originalFind = prisma.llmSettings.findUnique;
-    prisma.llmSettings.findUnique = async () =>
-      ({
-        id: 1,
-        openRouterApiKey: "sk-or-stale-db-key",
-        chatModel: "openai/gpt-4o",
-        visionModel1: "openai/gpt-4o",
-        visionModel2: "google/gemini-2.0-flash-001",
-        routerModel: "openai/gpt-4o-mini",
-        ragModel: "openai/gpt-4o-mini",
-        text2sqlModel: "openai/gpt-4o-mini",
-        graphdbModel: "openai/gpt-4o-mini",
-      }) as any;
+    // Prisma's delegate returns a PrismaPromise, not a plain Promise, so the stub
+    // has to be cast through unknown — casting only the returned object leaves the
+    // function type incompatible and fails `tsc`.
+    prisma.llmSettings.findUnique = (async () => ({
+      id: 1,
+      openRouterApiKey: "sk-or-stale-db-key",
+      chatModel: "openai/gpt-4o",
+      visionModel1: "openai/gpt-4o",
+      visionModel2: "google/gemini-2.0-flash-001",
+      routerModel: "openai/gpt-4o-mini",
+      ragModel: "openai/gpt-4o-mini",
+      text2sqlModel: "openai/gpt-4o-mini",
+      graphdbModel: "openai/gpt-4o-mini",
+    })) as unknown as typeof prisma.llmSettings.findUnique;
 
     try {
       const settings = await getLlmSettings();

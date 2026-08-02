@@ -198,7 +198,7 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
 
 chatRouter.post("/resume", async (req: AuthRequest, res, next) => {
   try {
-    const { answer, sessionId } = req.body;
+    const { answer, sessionId, threadId } = req.body;
     if (!sessionId || !answer) {
       return res.status(400).json({ error: "Missing sessionId or answer" });
     }
@@ -213,8 +213,11 @@ chatRouter.post("/resume", async (req: AuthRequest, res, next) => {
     });
 
     const { resumeOrchestrator } = require("../lib/orchestrator");
-    
-    const result = await resumeOrchestrator(Number(sessionId), answer);
+
+    // Resume the exact graph thread that paused. Falling back to sessionId keeps
+    // older clients working, but they can only resume runs started before graph
+    // threads became per-message.
+    const result = await resumeOrchestrator(threadId ?? Number(sessionId), answer);
 
     if (result.intent === "clarify_vision") {
       return res.json(result);

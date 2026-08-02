@@ -4,7 +4,24 @@ import { parse } from 'csv-parse';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const USDA_DIR = path.resolve('c:/Users/nik/Desktop/nikol/COURSE_JOHN_BRYCE/NuitriAgent AI/usda_extracted/FoodData_Central_foundation_food_csv_2026-04-30');
+
+// Resolved relative to the repo root so this runs on any machine; override with
+// USDA_DIR when the extracted FoodData Central CSVs live elsewhere.
+const DEFAULT_USDA_DIR = path.resolve(
+  __dirname,
+  '../../../usda_extracted/FoodData_Central_foundation_food_csv_2026-04-30'
+);
+const USDA_DIR = process.env.USDA_DIR
+  ? path.resolve(process.env.USDA_DIR)
+  : DEFAULT_USDA_DIR;
+
+if (!fs.existsSync(USDA_DIR)) {
+  console.error(
+    `USDA data directory not found: ${USDA_DIR}\n` +
+      `Extract usda.zip at the repo root, or set USDA_DIR to the folder containing food.csv.`
+  );
+  process.exit(1);
+}
 
 const nutrientMap: Record<string, string> = {
   '1008': 'calories',

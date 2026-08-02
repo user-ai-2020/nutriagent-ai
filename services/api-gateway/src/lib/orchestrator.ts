@@ -2,9 +2,18 @@ import { OrchestratorRequest, OrchestratorResponse } from "@nutriagent/shared";
 
 const ORCHESTRATOR_URL = process.env.ORCHESTRATOR_URL || "http://localhost:3001";
 
+/** Reply shape when the graph pauses for a clarifying question. `threadId`
+ *  identifies the paused run and MUST be echoed back to /resume — it is not the
+ *  session id, because each message runs on its own graph thread. */
+export interface ClarifyVisionResult {
+  intent: "clarify_vision";
+  question: string;
+  threadId?: string;
+}
+
 export async function callOrchestrator(
   params: OrchestratorRequest & { imageUrl?: string; sessionId?: number }
-): Promise<OrchestratorResponse | { intent: "clarify_vision"; question: string }> {
+): Promise<OrchestratorResponse | ClarifyVisionResult> {
   let res: Response;
   try {
     res = await fetch(`${ORCHESTRATOR_URL}/process`, {
@@ -25,7 +34,7 @@ export async function callOrchestrator(
 
   const result = await res.json() as any;
   if (isGraphInterrupted(result)) {
-    return { intent: "clarify_vision", question: result.interruptValue };
+    return { intent: "clarify_vision", question: result.interruptValue, threadId: result.threadId };
   }
   return result as OrchestratorResponse;
 }
@@ -35,9 +44,9 @@ export function isGraphInterrupted(result: any): boolean {
 }
 
 export async function resumeOrchestrator(
-  thread_id: number,
+  thread_id: string | number,
   answer: string
-): Promise<OrchestratorResponse | { intent: "clarify_vision"; question: string }> {
+): Promise<OrchestratorResponse | ClarifyVisionResult> {
   let res: Response;
   try {
     res = await fetch(`${ORCHESTRATOR_URL}/resume`, {
@@ -56,7 +65,7 @@ export async function resumeOrchestrator(
 
   const result = await res.json() as any;
   if (isGraphInterrupted(result)) {
-    return { intent: "clarify_vision", question: result.interruptValue };
+    return { intent: "clarify_vision", question: result.interruptValue, threadId: result.threadId };
   }
   return result as OrchestratorResponse;
 }

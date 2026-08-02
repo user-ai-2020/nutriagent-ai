@@ -30,6 +30,20 @@ services/api-gateway/uploads
 *.log
 .DS_Store
 
+# Bulk datasets & DB dumps — ingested from the host via scripts, never needed
+# inside an image. ~36MB of USDA CSVs was being sent to the Docker daemon on
+# every build, which is pure upload latency before any build step starts.
+usda.zip
+usda_extracted
+*.sql
+scratch
+
+# Infra / CI / agent tooling — not runtime content for any service image
+infra
+.github
+.agents
+.antigravity
+
 # Docs / non-runtime content (not needed inside any image)
 docs
 *.md

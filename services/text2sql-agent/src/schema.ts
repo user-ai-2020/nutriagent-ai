@@ -93,9 +93,8 @@ activity.exercise_logs (
   user_id INT,
   activity_type TEXT,  -- e.g. walking, running, swimming
   duration_minutes INT,
-  distance_meters FLOAT,
-  calories_burned FLOAT,
-  logged_at TIMESTAMP,
+  calories_burned INT,
+  timestamp TIMESTAMP,  -- when the activity happened (NOT "logged_at")
   created_at TIMESTAMP
 )
 

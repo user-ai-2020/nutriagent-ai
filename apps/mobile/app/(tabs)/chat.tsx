@@ -20,6 +20,23 @@ import { CameraIcon, GalleryIcon, SendIcon } from "@/components/Icons";
 import { FlowerMacro, NutritionFlower } from "@/components/NutritionFlower";
 import { Card, IconButton, Kicker, Tag } from "@/components/ui";
 import { colors, fonts, radius, serif, space, textMuted } from "@/theme/tokens";
+import type { CitationSource } from "@nutriagent/shared";
+
+/**
+ * Citations arrive as either a plain string or a { title, url } object (web/RAG
+ * sources). Rendering the object form directly as a child throws
+ * "Objects are not valid as a React child" and crashes the chat screen, so
+ * always reduce a source to a display string first.
+ */
+function sourceLabel(src: CitationSource): string {
+  if (src && typeof src === "object") {
+    const { title, url } = src as { title?: unknown; url?: unknown };
+    if (typeof title === "string" && title) return title;
+    if (typeof url === "string" && url) return url;
+    return "";
+  }
+  return typeof src === "string" ? src : String(src ?? "");
+}
 
 interface Nutrition {
   calories: number;
@@ -37,7 +54,7 @@ interface MealAnalysis {
 interface Message {
   role: string;
   content: string;
-  sources?: string[];
+  sources?: CitationSource[];
   mealAnalysis?: MealAnalysis;
   mealId?: number;
   imageUri?: string;
@@ -95,7 +112,7 @@ export default function ChatScreen() {
     setLoading(true);
 
     try {
-      let data: Message & { reply: string; sources: string[]; mealId?: number };
+      let data: Message & { reply: string; sources: CitationSource[]; mealId?: number };
       if (imageUri) {
         const form = new FormData();
         form.append("message", text);
@@ -169,11 +186,15 @@ export default function ChatScreen() {
 
               {item.sources?.length ? (
                 <View style={styles.sourceRow}>
-                  {item.sources.slice(0, 3).map((s) => (
-                    <Tag key={s} variant="outline">
-                      {s}
-                    </Tag>
-                  ))}
+                  {item.sources.slice(0, 3).map((s, idx) => {
+                    const label = sourceLabel(s);
+                    if (!label) return null;
+                    return (
+                      <Tag key={idx} variant="outline">
+                        {label}
+                      </Tag>
+                    );
+                  })}
                 </View>
               ) : null}
 

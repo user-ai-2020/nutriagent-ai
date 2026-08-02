@@ -37,13 +37,24 @@ function ragReplyBody(text: string): string {
 
 import { CitationSource } from "@nutriagent/shared";
 
+/**
+ * Always returns a string label — never an object. A citation arriving as
+ * { title, url } (web/RAG sources) rendered directly as a React child throws
+ * "Objects are not valid as a React child", which crashes the whole chat page,
+ * so every branch here is coerced to a primitive defensively.
+ */
 function formatSourceLabel(
   src: CitationSource,
   t: (key: string) => string
 ): { label: string; url?: string } {
-  if (typeof src === "object") {
-    return { label: src.title, url: src.url };
+  if (src && typeof src === "object") {
+    const { title, url } = src as { title?: unknown; url?: unknown };
+    const safeUrl = typeof url === "string" && url ? url : undefined;
+    const safeTitle = typeof title === "string" && title ? title : safeUrl;
+    return { label: safeTitle ?? "", url: safeUrl };
   }
+  if (typeof src !== "string") return { label: String(src ?? "") };
+
   const id = normalizeCitationSource(src);
   const i18nKey = CITATION_SOURCE_I18N_KEY[id];
   return { label: i18nKey ? t(`chat.sourceLabels.${i18nKey}`) : src };
@@ -51,6 +62,7 @@ function formatSourceLabel(
 
 function SourceTag({ src, t }: { src: CitationSource; t: any }) {
   const { label, url } = formatSourceLabel(src, t);
+  if (!label) return null;
   if (url) {
     return (
       <a href={url} target="_blank" rel="noopener noreferrer" className="tag tag-outline" style={{ textDecoration: "none" }}>
@@ -75,6 +87,9 @@ export default function ChatPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [sessionId, setSessionId] = useState<number | undefined>(undefined);
   const [pendingClarification, setPendingClarification] = useState<string | null>(null);
+  // Graph thread of the paused run — each message gets its own thread, so the
+  // resume must target this id rather than the session id.
+  const [pendingThreadId, setPendingThreadId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!file) {
@@ -105,9 +120,12 @@ export default function ChatPage() {
 
   async function handleNewChat() {
     try {
-      const res = await apiChat("/api/chat/session", { method: "POST" });
+      const res = await apiChat<{ id: number }>("/api/chat/session", { method: "POST" });
       setSessionId(res.id);
       setMessages([]);
+      // Drop any half-finished clarification from the previous chat.
+      setPendingClarification(null);
+      setPendingThreadId(null);
     } catch (err) {
       console.warn("Failed to create new chat session", err);
     }
@@ -128,7 +146,7 @@ export default function ChatPage() {
       let data: {
         reply: string;
         itemsDetected?: boolean;
-        sources?: string[];
+        sources?: CitationSource[];
         mealAnalysis?: MealAnalysis;
         mealId?: number;
         nutritionHistory?: NutritionHistoryData;
@@ -155,9 +173,11 @@ export default function ChatPage() {
 
       if (pendingClarification) {
         setPendingClarification(null);
-        data = await apiChat("/api/chat/resume", { 
-          method: "POST", 
-          body: JSON.stringify({ answer: message, sessionId }) 
+        const resumeThreadId = pendingThreadId;
+        setPendingThreadId(null);
+        data = await apiChat("/api/chat/resume", {
+          method: "POST",
+          body: JSON.stringify({ answer: message, sessionId, threadId: resumeThreadId }),
         });
       } else if (file) {
         const resizedBlob = await resizeImage(file);
@@ -195,6 +215,7 @@ export default function ChatPage() {
       
       if ((data as any).intent === "clarify_vision") {
         setPendingClarification((data as any).question);
+        setPendingThreadId((data as any).threadId ?? null);
         next.push({ kind: "text", from: "agent", text: (data as any).question });
       } else if (data.itemsDetected === false && data.multiModelMealAnalysis) {
         next.push({

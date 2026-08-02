@@ -42,12 +42,19 @@ async function run() {
     console.warn("Expected clarify_vision intent, got:", body1.intent);
   }
 
+  // Each /process call runs on its own graph thread, so the resume must target
+  // the threadId returned with the interrupt — sessionId no longer identifies it.
+  if (!body1.threadId) {
+    console.warn("No threadId returned with the interrupt; resume will likely fail.");
+  }
+
   console.log("-> 2. Calling POST /api/chat/resume");
   const res2 = await fetch("http://localhost:3000/api/chat/resume", {
     method: "POST",
     headers,
     body: JSON.stringify({
       sessionId: sessionId,
+      threadId: body1.threadId,
       answer: "Just the pizza, diet coke was my friend's. I ate it around 7 PM."
     })
   });

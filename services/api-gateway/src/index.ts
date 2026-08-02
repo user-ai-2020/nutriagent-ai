@@ -28,6 +28,13 @@ if (!fs.existsSync(mealImagesDir)) {
   fs.mkdirSync(mealImagesDir, { recursive: true });
 }
 
+// The portals call this API same-origin and their Next.js middleware proxies the
+// request, so every call arrives with an X-Forwarded-For header. Without this,
+// express-rate-limit throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR and buckets every
+// user under the proxy's IP. Trust exactly one hop (the portal) rather than
+// `true`, which would let a client spoof its IP by forging the header.
+app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS ?? 1));
+
 app.use(
   cors({
     origin: (

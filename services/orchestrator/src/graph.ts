@@ -715,9 +715,15 @@ const pool = new pg.Pool({
 });
 export const checkpointer = new PostgresSaver(pool);
 
-// Setup schema for checkpointer if it doesn't exist
-checkpointer.setup().catch((err: any) => {
-  console.warn("Failed to setup PostgresSaver checkpointer schema:", err);
-});
+/**
+ * `setup()` creates the LangGraph checkpoint tables (public.checkpoints etc.).
+ * It is async, so firing it off unawaited raced the HTTP server: a request that
+ * arrived first failed with `relation "public.checkpoints" does not exist`, and
+ * because the old code only warned, the service looked healthy while every
+ * interrupt/resume broke. Exported so index.ts can await it before listening.
+ */
+export const checkpointerReady: Promise<void> = checkpointer
+  .setup()
+  .then(() => undefined);
 
 export const orchestratorGraph = workflow.compile({ checkpointer });
