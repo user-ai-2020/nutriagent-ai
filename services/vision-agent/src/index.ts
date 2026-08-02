@@ -1,5 +1,6 @@
 import "./loadEnv";
 import express from "express";
+import { startServer } from "@nutriagent/shared";
 import { visionRouter } from "./router";
 
 const app = express();
@@ -8,4 +9,4 @@ app.get("/health", (_req, res) => res.json({ status: "ok", service: "vision-agen
 app.use("/", visionRouter);
 
 const PORT = Number(process.env.PORT || 3002);
-app.listen(PORT, () => console.log(`Vision Agent on http://localhost:${PORT}`));
+startServer(app, PORT, "Vision Agent");

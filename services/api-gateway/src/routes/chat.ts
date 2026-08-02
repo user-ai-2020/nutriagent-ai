@@ -5,7 +5,7 @@ import os from "os";
 import fs from "fs";
 import { createId } from "@nutriagent/shared";
 import { z } from "zod";
-import { prisma } from "@nutriagent/db";
+import { prisma, Prisma } from "@nutriagent/db";
 import {
   AUDIT_ACTIONS,
   createImageStorage,
@@ -35,6 +35,30 @@ const messageSchema = z.object({
   sessionId: z.number().optional(),
 });
 
+/**
+ * The structured payload behind an assistant turn, persisted on chat_history so a
+ * chat reopened from the history picker can re-render meal cards and charts
+ * rather than degrading to plain text. Returns undefined for plain replies so we
+ * don't write empty JSON objects for every message.
+ */
+function buildStoredAnalysis(result: {
+  itemsDetected?: boolean;
+  mealAnalysis?: unknown;
+  multiModelMealAnalysis?: unknown;
+  nutritionHistory?: unknown;
+}): Prisma.InputJsonValue | undefined {
+  const stored: Record<string, unknown> = {};
+  if (result.multiModelMealAnalysis) stored.multiModelMealAnalysis = result.multiModelMealAnalysis;
+  if (result.mealAnalysis) stored.mealAnalysis = result.mealAnalysis;
+  if (result.nutritionHistory) stored.nutritionHistory = result.nutritionHistory;
+  if (result.itemsDetected !== undefined) stored.itemsDetected = result.itemsDetected;
+
+  // Only `itemsDetected` on its own isn't worth a row of JSON.
+  const hasPayload =
+    stored.multiModelMealAnalysis || stored.mealAnalysis || stored.nutritionHistory;
+  return hasPayload ? (stored as Prisma.InputJsonValue) : undefined;
+}
+
 chatRouter.post("/session", async (req: AuthRequest, res, next) => {
   try {
     const session = await prisma.chatSession.create({
@@ -48,12 +72,50 @@ chatRouter.post("/session", async (req: AuthRequest, res, next) => {
   }
 });
 
+/**
+ * Past chat sessions for the sidebar/history picker, newest first, each with a
+ * preview taken from its first user message. Sessions are capped at 5 per user by
+ * the orchestrator's enforceChatCap node, so no pagination is needed here.
+ */
+chatRouter.get("/sessions", async (req: AuthRequest, res, next) => {
+  try {
+    const sessions = await prisma.chatSession.findMany({
+      where: { userId: req.user!.userId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        messages: {
+          where: { role: "user" },
+          orderBy: { timestamp: "asc" },
+          take: 1,
+          select: { content: true },
+        },
+        _count: { select: { messages: true } },
+      },
+    });
+
+    res.json({
+      sessions: sessions.map((s) => ({
+        id: s.id,
+        createdAt: s.createdAt,
+        messageCount: s._count.messages,
+        preview: s.messages[0]?.content ?? null,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 chatRouter.get("/history", async (req: AuthRequest, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 50, 100);
     const cursor = req.query.cursor ? Number(req.query.cursor) : undefined;
+    // Optional: restrict to one session so the UI can reopen a past chat.
+    const sessionId = req.query.sessionId ? Number(req.query.sessionId) : undefined;
     const messages = await prisma.chatHistory.findMany({
-      where: { userId: req.user!.userId },
+      // userId stays in the filter even with sessionId set — never trust a
+      // session id from the client to scope another user's messages.
+      where: { userId: req.user!.userId, ...(sessionId ? { sessionId } : {}) },
       orderBy: { timestamp: "asc" },
       take: limit + 1,
       ...(cursor ? { cursor: { messageId: cursor }, skip: 1 } : {}),
@@ -173,6 +235,7 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
         content: result.reply,
         mealId: result.mealId,
         sources: result.sources,
+        analysis: buildStoredAnalysis(result),
         sessionId: finalSessionId,
       },
     });
@@ -230,6 +293,7 @@ chatRouter.post("/resume", async (req: AuthRequest, res, next) => {
         content: result.reply,
         mealId: result.mealId,
         sources: result.sources,
+        analysis: buildStoredAnalysis(result),
         sessionId: Number(sessionId),
       },
     });

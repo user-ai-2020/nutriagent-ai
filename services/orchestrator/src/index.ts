@@ -1,6 +1,6 @@
 import "./loadEnv";
 import express from "express";
-import { OrchestratorRequest } from "@nutriagent/shared";
+import { OrchestratorRequest, startServer } from "@nutriagent/shared";
 import { checkpointerReady, orchestratorGraph } from "./graph";
 
 const app = express();
@@ -86,7 +86,7 @@ const PORT = Number(process.env.PORT || 3001);
 // the first request can beat setup() and fail on a missing `checkpoints` table.
 checkpointerReady
   .then(() => {
-    app.listen(PORT, () => console.log(`Orchestrator on http://localhost:${PORT}`));
+    startServer(app, PORT, "Orchestrator");
   })
   .catch((err) => {
     console.error(

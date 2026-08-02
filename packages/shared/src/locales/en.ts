@@ -59,6 +59,12 @@ export const enTranslations = {
     quickReplyEatNow: "What should I eat now?",
     quickReplyYesterday: "What did I eat yesterday?",
     newChat: "New chat",
+    history: "History",
+    historyTitle: "Previous chats",
+    historyEmpty: "No previous chats yet.",
+    historyMessageCount: "{{n}} messages",
+    historyUntitled: "Empty chat",
+    historyClose: "Close",
     emptyGreeting:
       "Good afternoon! Snap a photo of your next meal and I'll break down the nutrition — or ask me anything about your diet.",
     photoReady: "Photo ready",

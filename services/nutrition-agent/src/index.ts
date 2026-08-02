@@ -1,5 +1,6 @@
 import "./loadEnv";
 import express from "express";
+import { startServer } from "@nutriagent/shared";
 import { nutritionRouter } from "./router";
 
 const app = express();
@@ -8,4 +9,4 @@ app.get("/health", (_req, res) => res.json({ status: "ok", service: "nutrition-a
 app.use("/", nutritionRouter);
 
 const PORT = Number(process.env.PORT || 3003);
-app.listen(PORT, () => console.log(`Nutrition Agent on http://localhost:${PORT}`));
+startServer(app, PORT, "Nutrition Agent");

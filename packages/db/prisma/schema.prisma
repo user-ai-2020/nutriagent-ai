@@ -166,6 +166,10 @@ model ChatHistory {
   role          String       @default("user")
   content       String
   sources       Json?
+  /// Structured payload behind an assistant turn (multiModelMealAnalysis /
+  /// mealAnalysis / nutritionHistory) so reopening a past chat can re-render meal
+  /// cards and charts instead of degrading to plain text.
+  analysis      Json?
   timestamp     DateTime     @default(now())
   createdAt     DateTime     @default(now()) @map("created_at")
   user          User         @relation(fields: [userId], references: [userId], onDelete: Cascade)

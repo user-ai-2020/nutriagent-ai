@@ -4,7 +4,8 @@
   "private": true,
   "description": "NutriAgent AI - Nutrition tracking with multi-agent AI",
   "scripts": {
-    "dev": "pnpm --parallel -r run dev",
+    "dev": "pnpm --filter @nutriagent/shared build && pnpm --filter @nutriagent/db build && pnpm --parallel --filter \"./services/*\" --filter \"./apps/user-portal\" --filter \"./apps/admin-portal\" run dev",
+    "dev:packages": "pnpm --parallel --filter @nutriagent/shared --filter @nutriagent/db run dev",
     "dev:api": "pnpm --filter @nutriagent/api-gateway dev",
     "dev:admin": "pnpm --filter @nutriagent/admin-portal dev",
     "dev:mobile": "pnpm --filter @nutriagent/mobile start",

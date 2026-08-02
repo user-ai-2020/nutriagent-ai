@@ -4,6 +4,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import fs from "fs";
 import path from "path";
+import { startServer } from "@nutriagent/shared";
 import { authRouter } from "./routes/auth";
 import { profileRouter } from "./routes/profile";
 import { mealsRouter } from "./routes/meals";
@@ -115,6 +116,6 @@ app.use("/api/activity", activityRouter);
 
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`API Gateway running on http://localhost:${PORT}`);
+startServer(app, PORT, "API Gateway", {
+  onListening: (port) => console.log(`API Gateway running on http://localhost:${port}`),
 });

@@ -6,7 +6,7 @@ import { CITATION_SOURCE_I18N_KEY, normalizeCitationSource } from "@nutriagent/s
 import { api, apiBaseUrl, apiChat, CHAT_API_TIMEOUT_MS } from "@/lib/api";
 import { Profile } from "@/lib/profile";
 import { muted } from "@/lib/ui";
-import { CameraIcon, SendIcon } from "@/components/icons";
+import { CameraIcon, HistoryIcon, SendIcon } from "@/components/icons";
 import { MultiModelMealCards } from "@/components/MultiModelMealCards";
 import { FlowerMacro, NutritionFlower } from "@/components/NutritionFlower";
 import { NutritionHistoryChart, NutritionHistoryData } from "@/components/NutritionHistoryChart";
@@ -60,6 +60,72 @@ function formatSourceLabel(
   return { label: i18nKey ? t(`chat.sourceLabels.${i18nKey}`) : src };
 }
 
+interface ChatSessionSummary {
+  id: number;
+  createdAt: string;
+  messageCount: number;
+  preview: string | null;
+}
+
+/** Stored chat_history row. `analysis` carries the structured payload behind an
+ *  assistant turn so a reopened chat re-renders meal cards and charts. */
+interface StoredChatMessage {
+  messageId: number;
+  role: string;
+  content: string;
+  sources?: CitationSource[] | null;
+  analysis?: {
+    multiModelMealAnalysis?: any;
+    mealAnalysis?: MealAnalysis;
+    nutritionHistory?: NutritionHistoryData;
+    itemsDetected?: boolean;
+  } | null;
+}
+
+/** Rebuild a rendered chat message from a persisted row. Mirrors the branching
+ *  used for a live response so history looks identical to the original turn. */
+function storedMessageToMsg(m: StoredChatMessage, fallbackName: string): Msg {
+  if (m.role === "user") return { kind: "text", from: "user", text: m.content };
+
+  const analysis = m.analysis ?? undefined;
+  const sources = m.sources ?? undefined;
+
+  if (analysis?.multiModelMealAnalysis) {
+    const mm = analysis.multiModelMealAnalysis;
+    return {
+      kind: "multiModel",
+      text: m.content,
+      mealDescription: mm.mealDescription,
+      panels: mm.panels ?? [],
+      rerankerScores: mm.rerankerScores ?? [],
+      fusionMethod: mm.fusionMethod,
+      fallbackModelLabel: mm.fallbackModelLabel,
+      sources,
+    };
+  }
+
+  if (analysis?.mealAnalysis) {
+    const confidences = analysis.mealAnalysis.items.map((i) => i.visionConfidence ?? 0);
+    return {
+      kind: "card",
+      mealName: analysis.mealAnalysis.items[0]?.foodType ?? fallbackName,
+      analysis: analysis.mealAnalysis,
+      recommendation: m.content.split("\n")[0],
+      matchPct: confidences.length
+        ? Math.round((confidences.reduce((a, b) => a + b, 0) / confidences.length) * 100)
+        : 0,
+    };
+  }
+
+  if (analysis?.nutritionHistory) {
+    return { kind: "history", text: m.content, data: analysis.nutritionHistory, sources };
+  }
+
+  if (sources?.length) return { kind: "rag", text: m.content, sources };
+
+  return { kind: "text", from: "agent", text: m.content };
+}
+
 function SourceTag({ src, t }: { src: CitationSource; t: any }) {
   const { label, url } = formatSourceLabel(src, t);
   if (!label) return null;
@@ -90,6 +156,9 @@ export default function ChatPage() {
   // Graph thread of the paused run — each message gets its own thread, so the
   // resume must target this id rather than the session id.
   const [pendingThreadId, setPendingThreadId] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     if (!file) {
@@ -128,6 +197,46 @@ export default function ChatPage() {
       setPendingThreadId(null);
     } catch (err) {
       console.warn("Failed to create new chat session", err);
+    }
+  }
+
+  async function toggleHistory() {
+    if (historyOpen) {
+      setHistoryOpen(false);
+      return;
+    }
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    try {
+      const res = await api<{ sessions: ChatSessionSummary[] }>("/api/chat/sessions");
+      setSessions(res.sessions ?? []);
+    } catch (err) {
+      console.warn("Failed to load chat sessions", err);
+      setSessions([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  async function openSession(id: number) {
+    setHistoryOpen(false);
+    setBusy(true);
+    try {
+      const res = await api<{ messages: StoredChatMessage[] }>(
+        `/api/chat/history?sessionId=${id}&limit=100`
+      );
+      const restored: Msg[] = (res.messages ?? []).map((m) =>
+        storedMessageToMsg(m, t("mealAnalysis.loggedMeal"))
+      );
+      setMessages(restored);
+      setSessionId(id);
+      // A restored chat has no paused run attached to it.
+      setPendingClarification(null);
+      setPendingThreadId(null);
+    } catch (err) {
+      console.warn("Failed to open chat session", err);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -292,14 +401,98 @@ export default function ChatPage() {
           <h2 style={{ fontSize: 22, margin: "0 0 2px" }}>{t("chat.title")}</h2>
           <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>{t("chat.subtitle")}</p>
         </div>
-        <button
-          className="btn btn-secondary"
-          onClick={handleNewChat}
-          style={{ fontSize: 13, padding: "8px 12px", display: "flex", alignItems: "center", gap: 6 }}
-        >
-          <PlusIcon size={14} />
-          {t("chat.newChat", "New Chat")}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
+          <button
+            className="btn btn-secondary"
+            onClick={toggleHistory}
+            aria-expanded={historyOpen}
+            aria-haspopup="listbox"
+            style={{ fontSize: 13, padding: "8px 12px", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <HistoryIcon size={14} />
+            {t("chat.history")}
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={handleNewChat}
+            style={{ fontSize: 13, padding: "8px 12px", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <PlusIcon size={14} />
+            {t("chat.newChat", "New Chat")}
+          </button>
+
+          {historyOpen && (
+            <>
+              {/* Click-away layer so the panel closes on an outside click. */}
+              <div
+                onClick={() => setHistoryOpen(false)}
+                style={{ position: "fixed", inset: 0, zIndex: 40 }}
+              />
+              <div
+                role="listbox"
+                aria-label={t("chat.historyTitle")}
+                className="card elev-sm"
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 8px)",
+                  insetInlineEnd: 0,
+                  width: 320,
+                  maxHeight: 360,
+                  overflowY: "auto",
+                  zIndex: 41,
+                  padding: "var(--space-2)",
+                }}
+              >
+                <div style={{ fontSize: 12, opacity: 0.6, padding: "4px 8px 8px" }}>
+                  {t("chat.historyTitle")}
+                </div>
+
+                {historyLoading ? (
+                  <div style={{ fontSize: 13, padding: "8px" }}>…</div>
+                ) : sessions.length === 0 ? (
+                  <div style={{ fontSize: 13, padding: "8px", opacity: 0.7 }}>
+                    {t("chat.historyEmpty")}
+                  </div>
+                ) : (
+                  sessions.map((s) => (
+                    <button
+                      key={s.id}
+                      role="option"
+                      aria-selected={s.id === sessionId}
+                      onClick={() => openSession(s.id)}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        textAlign: "start",
+                        background: s.id === sessionId ? "var(--color-surface-2)" : "transparent",
+                        border: "none",
+                        borderRadius: "var(--radius-md)",
+                        padding: "8px",
+                        cursor: "pointer",
+                        color: "inherit",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 13,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {s.preview || t("chat.historyUntitled")}
+                      </div>
+                      <div style={{ fontSize: 11, opacity: 0.55, marginTop: 2 }}>
+                        {new Date(s.createdAt).toLocaleString()} ·{" "}
+                        {t("chat.historyMessageCount", { n: s.messageCount })}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div

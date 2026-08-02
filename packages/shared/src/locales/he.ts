@@ -59,6 +59,12 @@ export const heTranslations = {
     quickReplyEatNow: "מה כדאי לי לאכול עכשיו?",
     quickReplyYesterday: "מה אכלתי אתמול?",
     newChat: "שיחה חדשה",
+    history: "היסטוריה",
+    historyTitle: "שיחות קודמות",
+    historyEmpty: "אין עדיין שיחות קודמות.",
+    historyMessageCount: "{{n}} הודעות",
+    historyUntitled: "שיחה ריקה",
+    historyClose: "סגור",
     emptyGreeting:
       "צהריים טובים! צלמו את הארוחה הבאה ואפרק את התזונה — או שאלו כל דבר על התפריט שלכם.",
     photoReady: "התמונה מוכנה",

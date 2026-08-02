@@ -1,5 +1,6 @@
 import "./loadEnv";
 import express from "express";
+import { startServer } from "@nutriagent/shared";
 import { text2sqlRouter } from "./router";
 
 const app = express();
@@ -8,4 +9,4 @@ app.get("/health", (_req, res) => res.json({ status: "ok", service: "text2sql-ag
 app.use("/", text2sqlRouter);
 
 const PORT = Number(process.env.PORT || 3005);
-app.listen(PORT, () => console.log(`Text2SQL Agent on http://localhost:${PORT}`));
+startServer(app, PORT, "Text2SQL Agent");
