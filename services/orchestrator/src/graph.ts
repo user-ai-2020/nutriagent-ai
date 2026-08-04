@@ -561,19 +561,42 @@ async function saveMealNode(state: typeof OrchestratorState.State) {
 // BRANCH 3: TEXT2SQL (History Query)
 // ---------------------------------------------------------------------------
 
+/**
+ * The user asked a question about their own data; if the SQL path fails we owe
+ * them a sentence, not a stack trace. This used to reject, which failed the whole
+ * graph run and surfaced as a bare "Internal server error" in the chat bubble —
+ * the same non-degradation pattern already fixed on the RAG and GraphDB nodes.
+ */
+function historyUnavailableReply(lang: ReturnType<typeof resolveResponseLanguage>): string {
+  if (lang === "he") {
+    return "לא הצלחתי לשלוף את היסטוריית הארוחות שלך כרגע. אפשר לנסות שוב עוד רגע, או לנסח את השאלה אחרת (למשל: \"מה אכלתי אתמול?\").";
+  }
+  if (lang === "ru") {
+    return "Не удалось получить историю приёмов пищи. Попробуйте ещё раз через минуту или сформулируйте вопрос иначе (например: «Что я ел вчера?»).";
+  }
+  return "I couldn't retrieve your meal history just now. Please try again in a moment, or rephrase the question (for example: \"What did I eat yesterday?\").";
+}
+
 async function text2sqlNode(state: typeof OrchestratorState.State) {
   const historyResult = await callAgentWithTimeout<{ answer: string; rowCount: number }>(
-    `${TEXT2SQL_URL}/query`, 
+    `${TEXT2SQL_URL}/query`,
     {
       userId: state.request.userId,
       question: state.request.message,
       preferredLanguage: state.request.profile?.preferredLanguage,
-    }, 
+    },
     CHAT_AGENT_TIMEOUT_MS
-  );
-  
+  ).catch((err) => {
+    console.warn("History: Text2SQL query failed, replying with a fallback:", err);
+    const lang = resolveResponseLanguage(
+      state.request.message,
+      state.request.profile?.preferredLanguage ?? null
+    );
+    return { answer: historyUnavailableReply(lang), rowCount: 0 };
+  });
+
   const sourcesUpdate = [CITATION_SOURCES.MEAL_HISTORY];
-  
+
   const response: OrchestratorResponse = {
     intent: state.intent,
     reply: historyResult.answer,

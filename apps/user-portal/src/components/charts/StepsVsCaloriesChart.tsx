@@ -1,10 +1,12 @@
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useTranslation } from 'react-i18next';
 import { muted } from '@/lib/ui';
 
 export function StepsVsCaloriesChart({ data }: { data: any[] }) {
+  const { t } = useTranslation();
   return (
     <div className="card elev-sm" style={{ height: 280, padding: "var(--space-4)" }}>
-      <h4 style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: "0.06em", color: muted(60), marginBottom: "var(--space-4)" }}>Steps & Burn</h4>
+      <h4 style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: "0.06em", color: muted(60), marginBottom: "var(--space-4)" }}>{t("charts.stepsAndBurn")}</h4>
       <div style={{ height: 200, width: "100%" }}>
         <ResponsiveContainer>
           <ComposedChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
@@ -16,8 +18,8 @@ export function StepsVsCaloriesChart({ data }: { data: any[] }) {
               contentStyle={{ borderRadius: "var(--radius-md)", border: "1px solid var(--color-divider)", fontSize: 13 }}
             />
             <Legend verticalAlign="bottom" height={24} iconType="circle" wrapperStyle={{ fontSize: 11 }} />
-            <Bar yAxisId="left" dataKey="steps" name="Steps" fill="var(--color-accent-200)" radius={[4, 4, 0, 0]} />
-            <Line yAxisId="right" type="monotone" dataKey="caloriesBurned" name="Calories Burned" stroke="#f59e0b" strokeWidth={3} dot={false} />
+            <Bar yAxisId="left" dataKey="steps" name={t("dashboard.steps")} fill="var(--color-accent-200)" radius={[4, 4, 0, 0]} />
+            <Line yAxisId="right" type="monotone" dataKey="caloriesBurned" name={t("charts.caloriesBurned")} stroke="#f59e0b" strokeWidth={3} dot={false} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

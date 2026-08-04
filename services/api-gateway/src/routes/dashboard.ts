@@ -91,19 +91,23 @@ dashboardRouter.get("/", async (req: AuthRequest, res, next) => {
     const focusEnd = endOfDay(focusStart);
     const isFocusToday = focusStart.getTime() === startOfDay(now).getTime();
 
-    if (period === "week" && dateQuery) {
-      from = startOfWeekSunday(focusStart);
-      const weekEnd = endOfWeekSaturday(focusStart);
-      rangeEnd = weekEnd.getTime() > now.getTime() ? now : weekEnd;
-    } else if (period === "day") {
-      from = startOfDay(now);
-      rangeEnd = now;
+    // Every range is anchored on the focused day, not on "now". Previously only
+    // the week branch honoured ?date=, so stepping back a day with period=day (or
+    // into a previous month) still queried today's window — the fetch excluded the
+    // very rows the page was about, and the dashboard rendered zeros for a day
+    // that had meals. rangeEnd is clamped to now so future days stay empty rather
+    // than querying ahead.
+    const clampToNow = (d: Date) => (d.getTime() > now.getTime() ? now : d);
+
+    if (period === "day") {
+      from = focusStart;
+      rangeEnd = clampToNow(focusEnd);
     } else if (period === "month") {
-      from = new Date(now.getFullYear(), now.getMonth(), 1);
-      rangeEnd = now;
+      from = new Date(focusStart.getFullYear(), focusStart.getMonth(), 1);
+      rangeEnd = clampToNow(endOfDay(new Date(focusStart.getFullYear(), focusStart.getMonth() + 1, 0)));
     } else {
-      from = startOfWeekSunday(now);
-      rangeEnd = now;
+      from = startOfWeekSunday(focusStart);
+      rangeEnd = clampToNow(endOfWeekSaturday(focusStart));
     }
 
     const profile = await prisma.userProfile.findUnique({
@@ -144,6 +148,11 @@ dashboardRouter.get("/", async (req: AuthRequest, res, next) => {
       carbsGrams: 250,
       fatGrams: 65,
     };
+
+    const focusDateKey = localDateKey(focusStart);
+    const focusedDaySteps = dailySteps
+      .filter((s) => localDateKey(s.date) === focusDateKey)
+      .reduce((sum, s) => sum + s.steps, 0);
 
     const mealTypeBreakdown = { breakfast: 0, lunch: 0, dinner: 0, snack: 0 };
     for (const meal of dayMeals) {
@@ -204,8 +213,13 @@ dashboardRouter.get("/", async (req: AuthRequest, res, next) => {
         percent: Math.min(Math.round((dayTotals.calories / calorieGoal) * 100), 100),
       },
       mealTypeBreakdown,
+      // daily_steps is the source of truth; profile.todaySteps is a denormalized
+      // cache that only ever holds *today*. Reading the cache meant stepping back
+      // a day always showed 0 steps even when that day had a recorded count.
+      // Read the focused day from daily_steps, and fall back to the cache only
+      // for today (covers a profile edited directly without a daily_steps row).
       steps: {
-        today: isFocusToday ? (profile?.todaySteps ?? 0) : 0,
+        today: focusedDaySteps > 0 ? focusedDaySteps : isFocusToday ? (profile?.todaySteps ?? 0) : 0,
         goal: profile?.dailyStepsGoal ?? 8000,
       },
       goals,

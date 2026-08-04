@@ -2,6 +2,7 @@ import { getCachedLlmSettings } from "@nutriagent/db";
 import { openRouterChat } from "@nutriagent/shared";
 import { matchHistorySql } from "./historyTemplates";
 
+
 const SQL_BLOCK_RE = /```(?:sql)?\s*([\s\S]*?)```/i;
 
 export function extractSqlFromLlmResponse(raw: string): string {

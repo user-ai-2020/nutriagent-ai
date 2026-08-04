@@ -1,7 +1,7 @@
 import { getLlmSettings } from "@nutriagent/db";
 import { openRouterChat, resolveResponseLanguage, responseLanguageInstruction } from "@nutriagent/shared";
-import { formatHistoryRows } from "./formatHistoryRows";
-import { matchHistorySql } from "./historyTemplates";
+import { formatHistoryRows, formatStepsRows } from "./formatHistoryRows";
+import { matchHistoryTemplate } from "./historyTemplates";
 
 function serializeRowsForPrompt(rows: Record<string, unknown>[]): string {
   const sample = rows.slice(0, 50);
@@ -58,9 +58,18 @@ export async function formatAnswer(
   preferredLanguage?: string | null
 ): Promise<string> {
   const lang = resolveResponseLanguage(question, preferredLanguage);
+  const template = matchHistoryTemplate(question);
+
+  // Steps rows have no food names or meal types, so there is nothing for the
+  // polish pass to translate and everything for it to hallucinate. The
+  // deterministic formatter is already fully localized — ship it as-is.
+  if (template?.kind === "steps") {
+    return formatStepsRows(rows, lang);
+  }
+
   const draft = formatHistoryRows(rows, lang);
 
-  if (matchHistorySql(question)) {
+  if (template) {
     const llm = await getLlmSettings();
     const apiKey = llm.openRouterApiKey || process.env.OPENROUTER_API_KEY;
     if (!apiKey) return draft;

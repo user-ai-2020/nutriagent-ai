@@ -374,7 +374,7 @@ export function SettingsClient() {
             const on = restrictions.includes(r.id);
             return (
               <button key={r.id} type="button" className={`pill${on ? " is-on" : ""}`} onClick={() => toggle(r.id)}>
-                {r.label}
+                {t(r.labelKey, r.label)}
                 {on ? " ✓" : ""}
               </button>
             );
@@ -392,7 +392,7 @@ export function SettingsClient() {
                 onChange={() => setProfile({ ...profile, dietType: d.id })}
               />
               <span className="dot" />
-              {d.label}
+              {t(d.labelKey, d.label)}
             </label>
           ))}
         </div>

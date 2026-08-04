@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { apiBaseUrl, api } from "@/lib/api";
 import { Segmented } from "@/components/Segmented";
+import { mealTypeLabel } from "@/lib/mealType";
 import { useMeals } from "@/hooks/queries";
 import { useMemo } from "react";
 
@@ -116,13 +117,15 @@ export default function SummaryPage() {
                   {name}
                 </div>
                 <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 2 }}>
-                  <span className="tag tag-neutral">{meal.mealType}</span>
+                  <span className="tag tag-neutral">{mealTypeLabel(meal.mealType, t)}</span>
                   <span style={{ fontSize: 11.5, opacity: 0.55 }}>
                     {dayLabel(meal.mealDatetime, t)} · {timeLabel(meal.mealDatetime)}
                   </span>
                 </div>
               </div>
-              <div style={{ fontSize: 14, fontWeight: 600, flex: "none" }}>{Math.round(calories)} kcal</div>
+              <div style={{ fontSize: 14, fontWeight: 600, flex: "none" }}>
+                {Math.round(calories)} {t("common.kcal")}
+              </div>
             </button>
           );
         })}

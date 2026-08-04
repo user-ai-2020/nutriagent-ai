@@ -33,8 +33,19 @@ const logActivitySchema = z.object({
 });
 
 const logStepsSchema = z.object({
-  steps: z.number().int().positive(),
-  date: z.string().datetime().optional(), // YYYY-MM-DD or full ISO
+  // min(0), not positive(): correcting a mistyped count back down to zero is a
+  // legitimate edit, and rejecting it left the UI unable to undo its own bad
+  // write. The upper bound is a sanity guard — the world record for a day is
+  // well under 200k, so anything above is a fat-fingered digit.
+  steps: z.number().int().min(0).max(200_000),
+  // The comment here used to promise "YYYY-MM-DD or full ISO" while
+  // .datetime() accepted only the latter, so a plain date 400'd. Accept both.
+  date: z
+    .string()
+    .refine((v) => /^\d{4}-\d{2}-\d{2}$/.test(v) || !Number.isNaN(Date.parse(v)), {
+      message: "date must be YYYY-MM-DD or an ISO datetime",
+    })
+    .optional(),
 });
 
 // 1. POST /api/activity/log

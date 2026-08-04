@@ -34,6 +34,41 @@ export const ruTranslations = {
     cancel: "Отмена",
     edit: "Изменить",
     retry: "Повторить",
+    kcal: "ккал",
+  },
+  profileOptions: {
+    glutenFree: "Без глютена",
+    nutAllergy: "Аллергия на орехи",
+    dairyFree: "Без молочного",
+    lowSodium: "Мало соли",
+    balanced: "Сбалансированное",
+    vegetarian: "Вегетарианское",
+    keto: "Кетогенное",
+    lowCarb: "Низкоуглеводное",
+  },
+  steps: {
+    goalLabel: "Цель {{goal}}",
+    // Deliberately "осталось: N" rather than "осталось N шагов": Russian would
+    // need three plural forms (шаг / шага / шагов) and picking one reads as
+    // broken. The card heading already says Шаги, so the noun is redundant here.
+    remaining: "осталось: {{remaining}}",
+    goalReached: "Цель достигнута 🎉",
+    setExact: "Указать точное число шагов",
+    saveFailed: "Не удалось сохранить шаги. Попробуйте ещё раз.",
+  },
+  charts: {
+    stepsAndBurn: "Шаги и расход",
+    caloriesBurned: "Сожжено калорий",
+  },
+  onboarding: {
+    title: "Настройка профиля",
+    stepOf: "Шаг {{current}} из {{total}}",
+    goalsTitle: "Дневные цели питания",
+    restrictionsHint: "Отметьте подходящее — агент учитывает это в рекомендациях.",
+    back: "Назад",
+    continue: "Далее",
+    finish: "Завершить настройку",
+    saving: "Сохранение…",
   },
   nav: {
     chat: "Чат",

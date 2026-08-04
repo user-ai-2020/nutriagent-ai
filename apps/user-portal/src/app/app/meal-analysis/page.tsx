@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { apiBaseUrl, api } from "@/lib/api";
 import { CheckIcon, CloseIcon, PencilIcon } from "@/components/icons";
+import { mealTypeLabel } from "@/lib/mealType";
 import { useMeal, useEditMealItem } from "@/hooks/queries";
 
 interface Item {
@@ -120,8 +121,8 @@ export default function MealAnalysisPage() {
               </button>
             )}
           </div>
-          <p style={{ fontSize: 13, opacity: 0.6, margin: "0 0 var(--space-4)", textTransform: "capitalize" }}>
-            {meal.mealType} · {date.toLocaleDateString()} ·{" "}
+          <p style={{ fontSize: 13, opacity: 0.6, margin: "0 0 var(--space-4)" }}>
+            {mealTypeLabel(meal.mealType, t)} · {date.toLocaleDateString()} ·{" "}
             {date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
           </p>
 
@@ -179,7 +180,7 @@ export default function MealAnalysisPage() {
                         <div style={{ fontSize: 12, opacity: 0.6 }}>
                           {item.estimatedQuantity}
                           {item.nutritionValues
-                            ? ` · ${Math.round(item.nutritionValues.calories)} kcal`
+                            ? ` · ${Math.round(item.nutritionValues.calories)} ${t("common.kcal")}`
                             : ""}
                         </div>
                       </div>

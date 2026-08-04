@@ -27,6 +27,34 @@ describe("validateSQL", () => {
     assert.match(sql, /LIMIT\s+50/i);
   });
 
+  // Regression: the whitelist only listed `select::null::<table>`, so writing a
+  // public table with its schema prefix — which the schema description actively
+  // encourages, and models therefore do — was rejected as "Table not allowed:
+  // meals". Both spellings name the same table.
+  it("accepts an explicitly public-qualified table", () => {
+    const sql = validateSQL("SELECT meal_id FROM public.meals LIMIT 10", USER_ID);
+    assert.match(sql, /user_id"?\s*=\s*42/i);
+    assert.match(sql, /LIMIT\s+10/i);
+  });
+
+  it("scopes a public-qualified table to the user even when aliased", () => {
+    const sql = validateSQL(
+      `SELECT m.meal_type, mi.food_type
+       FROM public.meals m
+       JOIN public.meal_items mi ON mi.meal_id = m.meal_id
+       LIMIT 25`,
+      USER_ID
+    );
+    assert.match(sql, /"m"\."?user_id"?\s*=\s*42/i);
+  });
+
+  it("still rejects a public-qualified table that is not on the allowlist", () => {
+    assert.throws(
+      () => validateSQL("SELECT id FROM public.users LIMIT 10", USER_ID),
+      SqlValidationError
+    );
+  });
+
   it("blocks DELETE statements", () => {
     assert.throws(
       () => validateSQL("DELETE FROM meals WHERE user_id = 1", USER_ID),

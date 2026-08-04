@@ -11,6 +11,7 @@ import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/ic
 import { WeeklyCalorieTrend } from "@/components/charts/WeeklyCalorieTrend";
 import { MacroBreakdownChart } from "@/components/charts/MacroBreakdownChart";
 import { StepsVsCaloriesChart } from "@/components/charts/StepsVsCaloriesChart";
+import { StepsCard } from "@/components/StepsCard";
 
 
 interface Dash {
@@ -360,6 +361,13 @@ export function DashboardClient() {
           </Link>
         </div>
       </div>
+
+      <StepsCard
+        steps={data.steps.today}
+        goal={data.steps.goal}
+        dateKey={localDateKey(selectedDate)}
+        editable={selectedDate.getTime() <= today.getTime()}
+      />
 
       <div style={{ marginTop: "var(--space-4)" }}>
         <div

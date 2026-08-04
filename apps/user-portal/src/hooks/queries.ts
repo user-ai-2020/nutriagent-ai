@@ -71,6 +71,27 @@ export function useUpdateProfile() {
   });
 }
 
+/**
+ * Record the step count for a day. The API upserts on (userId, date), so this is
+ * a set-to-value operation rather than an increment — callers that want "+1000"
+ * pass the already-summed total. Invalidates the dashboard (which reads steps
+ * from daily_steps) and the profile (whose todaySteps cache the API updates).
+ */
+export function useLogSteps() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ steps, date }: { steps: number; date?: string }) =>
+      api("/api/activity/steps", {
+        method: "POST",
+        body: JSON.stringify({ steps, ...(date ? { date } : {}) }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: queryKeys.profile() });
+    },
+  });
+}
+
 export function useEditMealItem(mealId: number) {
   const qc = useQueryClient();
   return useMutation({

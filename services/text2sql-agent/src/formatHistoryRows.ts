@@ -138,6 +138,74 @@ function kcalLabel(lang: ResponseLanguage): string {
 }
 
 /**
+ * Russian counts need three forms and picking one at random reads as broken to a
+ * native speaker, which is exactly the complaint we already fixed once in the
+ * chat replies. Hebrew needs singular vs plural; English needs the -s.
+ */
+function stepsUnit(count: number, lang: ResponseLanguage): string {
+  if (lang === "he") return count === 1 ? "צעד" : "צעדים";
+  if (lang === "ru") {
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+    if (mod10 === 1 && mod100 !== 11) return "шаг";
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "шага";
+    return "шагов";
+  }
+  return count === 1 ? "step" : "steps";
+}
+
+function noStepsMessage(lang: ResponseLanguage): string {
+  if (lang === "he") return "לא נרשמו צעדים לתקופה שביקשת.";
+  if (lang === "ru") return "За выбранный период шаги не записаны.";
+  return "No steps were recorded for that period.";
+}
+
+function stepsTotalMessage(total: number, days: number, lang: ResponseLanguage): string {
+  const unit = stepsUnit(total, lang);
+  if (lang === "he") return `\nסה"כ: ${total.toLocaleString("he-IL")} ${unit} ב-${days} ימים.`;
+  if (lang === "ru") {
+    return `\nИтого: ${total.toLocaleString("ru-RU")} ${unit} за ${days} дн.`;
+  }
+  return `\nTotal: ${total.toLocaleString("en-US")} ${unit} across ${days} day(s).`;
+}
+
+function formatStepsDate(value: unknown, lang: ResponseLanguage): string {
+  const parsed = new Date(asString(value));
+  if (Number.isNaN(parsed.getTime())) return asString(value);
+  return parsed.toLocaleDateString(LOCALE_BY_LANG[lang], { dateStyle: "medium" });
+}
+
+/** Deterministic daily-steps formatting in the user's UI language. */
+export function formatStepsRows(
+  rows: Record<string, unknown>[],
+  lang: ResponseLanguage
+): string {
+  if (rows.length === 0) return noStepsMessage(lang);
+
+  const days = rows
+    .map((row) => ({ date: row.date, steps: asNumber(row.steps) }))
+    .filter((d) => d.steps > 0);
+
+  if (days.length === 0) return noStepsMessage(lang);
+
+  // One day is the common case ("how many steps today?") — a bare sentence reads
+  // better than a one-row list with a redundant total underneath.
+  if (days.length === 1) {
+    const only = days[0];
+    const count = Math.round(only.steps);
+    return `${formatStepsDate(only.date, lang)}: ${count.toLocaleString(LOCALE_BY_LANG[lang])} ${stepsUnit(count, lang)}`;
+  }
+
+  const lines = days.map((d) => {
+    const count = Math.round(d.steps);
+    return `• ${formatStepsDate(d.date, lang)} — ${count.toLocaleString(LOCALE_BY_LANG[lang])} ${stepsUnit(count, lang)}`;
+  });
+  const total = Math.round(days.reduce((sum, d) => sum + d.steps, 0));
+  lines.push(stepsTotalMessage(total, days.length, lang));
+  return lines.join("\n");
+}
+
+/**
  * Deterministic meal-history formatting in the user's UI language.
  * Meal types + dates are localized; food names stay as stored (often English from vision)
  * unless a later LLM polish step rewrites them.

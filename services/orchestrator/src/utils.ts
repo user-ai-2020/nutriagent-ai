@@ -144,7 +144,13 @@ export function classifyIntent(message: string, hasImage: boolean): ChatIntent {
     lower.includes("я ел что-то") ||
     lower.includes("я ела что-то") ||
     lower.includes("between") ||
-    lower.includes("from ")
+    lower.includes("from ") ||
+    // Steps are personal log data, so they belong on the Text2SQL path. Without
+    // these, a bare "Сколько шагов?" (no period word to match on) fell through to
+    // general chat and got an invented answer instead of the recorded count.
+    lower.includes("steps") ||
+    lower.includes("шаг") ||
+    lower.includes("צעד")
   ) {
     return "history_query";
   }

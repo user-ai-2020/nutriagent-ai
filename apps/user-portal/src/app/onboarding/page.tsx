@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { applyRestrictions, DIET_TYPES, RESTRICTIONS, RestrictionId } from "@/lib/profile";
 
@@ -9,6 +10,7 @@ const STEPS = 3;
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [step, setStep] = useState(0);
   const [calories, setCalories] = useState(2200);
   const [protein, setProtein] = useState(130);
@@ -57,9 +59,9 @@ export default function OnboardingPage() {
             marginBottom: "var(--space-1)",
           }}
         >
-          <h2 style={{ fontSize: 22, margin: 0 }}>Set up your profile</h2>
+          <h2 style={{ fontSize: 22, margin: 0 }}>{t("onboarding.title")}</h2>
           <span style={{ fontSize: 12, opacity: 0.55 }}>
-            Step {step + 1} of {STEPS}
+            {t("onboarding.stepOf", { current: step + 1, total: STEPS })}
           </span>
         </div>
         <div
@@ -82,9 +84,9 @@ export default function OnboardingPage() {
 
         {step === 0 && (
           <>
-            <h3 style={{ fontSize: 16, marginBottom: "var(--space-3)" }}>Daily diet goals</h3>
+            <h3 style={{ fontSize: 16, marginBottom: "var(--space-3)" }}>{t("onboarding.goalsTitle")}</h3>
             <div className="field">
-              <label htmlFor="ob-cal">Calorie goal (kcal/day)</label>
+              <label htmlFor="ob-cal">{t("settings.calorieGoal")}</label>
               <input
                 className="input"
                 id="ob-cal"
@@ -94,7 +96,7 @@ export default function OnboardingPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="ob-pro">Protein goal (g/day)</label>
+              <label htmlFor="ob-pro">{t("settings.proteinGoal")}</label>
               <input
                 className="input"
                 id="ob-pro"
@@ -108,9 +110,9 @@ export default function OnboardingPage() {
 
         {step === 1 && (
           <>
-            <h3 style={{ fontSize: 16, marginBottom: "var(--space-1)" }}>Health restrictions &amp; allergies</h3>
+            <h3 style={{ fontSize: 16, marginBottom: "var(--space-1)" }}>{t("settings.restrictionsTitle")}</h3>
             <p className="note" style={{ fontSize: 12.5, opacity: 0.6, margin: "0 0 var(--space-3)" }}>
-              Tap any that apply — the agent filters recommendations against these.
+              {t("onboarding.restrictionsHint")}
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
               {RESTRICTIONS.map((r) => {
@@ -122,7 +124,7 @@ export default function OnboardingPage() {
                     className={`pill${on ? " is-on" : ""}`}
                     onClick={() => toggle(r.id)}
                   >
-                    {r.label}
+                    {t(r.labelKey, r.label)}
                     {on ? " ✓" : ""}
                   </button>
                 );
@@ -133,7 +135,7 @@ export default function OnboardingPage() {
 
         {step === 2 && (
           <>
-            <h3 style={{ fontSize: 16, marginBottom: "var(--space-3)" }}>Diet type</h3>
+            <h3 style={{ fontSize: 16, marginBottom: "var(--space-3)" }}>{t("settings.dietTypeTitle")}</h3>
             <div className="stack" style={{ display: "grid", gap: "var(--space-1)" }}>
               {DIET_TYPES.map((d) => (
                 <label className="radio" key={d.id}>
@@ -144,7 +146,7 @@ export default function OnboardingPage() {
                     onChange={() => setDietType(d.id)}
                   />
                   <span className="dot" />
-                  {d.label}
+                  {t(d.labelKey, d.label)}
                 </label>
               ))}
             </div>
@@ -156,16 +158,16 @@ export default function OnboardingPage() {
             <span />
           ) : (
             <button type="button" className="btn btn-secondary" onClick={() => setStep((s) => s - 1)}>
-              Back
+              {t("onboarding.back")}
             </button>
           )}
           {step < STEPS - 1 ? (
             <button type="button" className="btn btn-primary" onClick={() => setStep((s) => s + 1)}>
-              Continue
+              {t("onboarding.continue")}
             </button>
           ) : (
             <button type="button" className="btn btn-primary" onClick={finish} disabled={busy}>
-              {busy ? "Saving…" : "Finish setup"}
+              {busy ? t("onboarding.saving") : t("onboarding.finish")}
             </button>
           )}
         </div>

@@ -12,17 +12,32 @@ const PG_OPT = { database: "Postgresql" } as const;
 const BLOCKED_KEYWORDS =
   /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|COPY|EXECUTE|CALL)\b/i;
 
-// node-sql-parser whiteListCheck format: select::<schema>::<table>
-// For unqualified tables (public schema), schema is null → select::null::tablename
-// For schema-qualified tables like activity.daily_steps → select::activity::daily_steps
-const TABLE_WHITELIST = [...ALLOWED_TABLES].map((t) => {
+// node-sql-parser whiteListCheck format: select::<schema>::<table>, taken
+// verbatim from how the query spells the table — the parser does no schema
+// resolution. So a public-schema table has TWO valid authorities:
+//
+//   FROM meals         → select::null::meals
+//   FROM public.meals  → select::public::meals
+//
+// Listing only the `null` form rejected perfectly legal SQL as
+// "Table not allowed: meals". That is not hypothetical: the schema description
+// tells the model to "always use the fully-qualified schema prefix" (needed for
+// activity.* and media.*), and models reasonably generalise that instruction to
+// the public tables too. Whether they do is luck of the draw per prompt, which
+// made this look like a language-specific bug — English happened to hit a
+// deterministic template, Russian went to the LLM and got `public.meals`.
+//
+// Both spellings mean the same table, so both are allowed. Scoping is unaffected:
+// the AST records `db: "public", table: "meals"`, and every downstream lookup
+// keys off the bare table name.
+const TABLE_WHITELIST = [...ALLOWED_TABLES].flatMap((t) => {
   const dotIdx = t.indexOf(".");
   if (dotIdx !== -1) {
     const schema = t.slice(0, dotIdx);
     const table = t.slice(dotIdx + 1);
-    return `select::${schema}::${table}`;
+    return [`select::${schema}::${table}`];
   }
-  return `select::null::${t}`;
+  return [`select::null::${t}`, `select::public::${t}`];
 });
 
 export class SqlValidationError extends Error {
