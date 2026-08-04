@@ -8,94 +8,6 @@ Repository: <https://github.com/user-ai-2020/nutriagent-ai>
 
 ---
 
-## What it actually does
-
-- **Photograph a meal** — three different vision models look at the photo independently, a reranker cross-checks their guesses, and the result is calories, protein, fat, and carbs per item — saved to your history automatically.
-- **Ask about your own data in plain language** — "What did I eat yesterday?", "How many steps today?", "Что я ел на этой неделе?" — answered by turning your question into a safe, read-only SQL query scoped to your account (never anyone else's).
-- **Ask general nutrition questions** — "Is keto safe with high blood pressure?" — answered from a knowledge base (RAG) plus a small clinical rules engine that checks your allergies and health conditions before suggesting anything.
-- **Track daily steps** — log manually or ask the chat, shown against your daily goal.
-- **Personalized calorie & macro targets** — enter weight, height, age, activity level and a goal (lose fat / maintain / build muscle) in Settings, and the app computes your target calories and protein using the Mifflin-St Jeor BMR equation, FAO/WHO activity multipliers, and published protein-per-kg ranges — not a guess, and not made up by an LLM.
-- **Fully localized** — Hebrew (RTL), English, and Russian across the entire UI *and* the AI's replies. Ask a question in Russian, get a grammatically correct Russian answer; switch languages and your past chat history is shown translated too.
-- **Admin panel** — a separate portal for managing users, on its own port, with its own access control.
-
-## Why multiple agents instead of one AI call
-
-A single model asked to "handle nutrition" tends to hallucinate — invent calorie numbers, invent SQL, invent food names it didn't actually see in the photo. Splitting the work into narrow specialists, each with one job and a strict contract, makes each piece easy to check and hard to fool:
-
-| Specialist | Job | Cannot do |
-|---|---|---|
-| **Vision agent** | Look at a photo, name the foods, estimate quantity | Doesn't know nutrition values — that's not its job |
-| **Nutrition agent** | Turn identified foods into calories/macros; give advice | Doesn't look at photos or touch the database |
-| **RAG agent** | Answer general nutrition questions from a knowledge base | Never sees *your* personal data |
-| **Text2SQL agent** | Answer questions about *your* logged meals/steps | Generated SQL is validated against an allowlist and force-scoped to your user ID before it ever touches the database — it cannot see or modify anyone else's rows, and it cannot write, only read |
-| **GraphDB agent** | Cross-check suggestions against your allergies/conditions | Small rules table (diabetes, peanut allergy, hypertension), not a general-purpose model |
-
-A workflow engine called **LangGraph** sits in front of all of them, in one place (the **Orchestrator**), and decides which specialist(s) a given message needs. Everything else — the three client apps, the API — never talks to the specialists directly.
-
-## Architecture
-
-```mermaid
-flowchart TB
-  subgraph Clients
-    M[Mobile app]
-    U[User Portal]
-    A[Admin Portal]
-  end
-
-  GW[API Gateway<br/>auth + REST]
-  LG[Orchestrator<br/>LangGraph — decides what to do]
-
-  V[Vision agent]
-  N[Nutrition agent]
-  R[RAG agent]
-  T[Text2SQL agent]
-  G[GraphDB agent — clinical rules]
-
-  DB[(Postgres + pgvector)]
-
-  M --> GW
-  U --> GW
-  A --> GW
-  GW --> LG
-  LG --> V
-  LG --> N
-  LG --> R
-  LG --> T
-  LG --> G
-  LG --> DB
-```
-
-**How one message travels through the system:**
-
-1. You send a chat message (text and/or a photo) from any client.
-2. The **API Gateway** checks you're logged in and forwards it to the **Orchestrator**.
-3. The Orchestrator's LangGraph workflow classifies your intent — is this a meal photo, a question about your own history, or a general question/request for advice? — and picks the path.
-4. That path calls only the specialist agents it needs, in order, over plain HTTP.
-5. The reply comes back through the gateway to whichever client you're using.
-
-| Your message looks like… | Intent | What runs |
-|---|---|---|
-| Has a photo attached | `meal_analysis` | Vision → Nutrition → GraphDB (safety check) → saved to your meals |
-| "What did I eat yesterday?" / "כמה קלוריות היום?" / "Сколько шагов сегодня?" | `history_query` | Text2SQL — reads only your rows |
-| "Is this diet safe for me?" / anything else | `general_chat` / advice | Knowledge base (RAG) → GraphDB safety check → Nutrition advice |
-
-Full sequence diagrams and per-agent detail: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**. Deep technical reference for every feature (image storage, SQL security model, RAG pipeline internals, i18n system): **[docs/TASKS.md](docs/TASKS.md)**.
-
-### Tech stack
-
-| Layer | Technology |
-|---|---|
-| Orchestration | LangGraph (`@langchain/langgraph`) — a state machine, not a database |
-| Backend services | Node.js + Express, one per agent |
-| Web apps | Next.js 15 (App Router) — user portal and admin portal |
-| Mobile | Expo / React Native |
-| Database | PostgreSQL with **pgvector** (for the knowledge-base search) |
-| AI models | Called via [OpenRouter](https://openrouter.ai) — vision, chat, and embedding models, swappable without code changes |
-| Auth | JWT in an httpOnly cookie, shared between the two web portals on the same host |
-| Containers | Docker Compose (local + single-VM production); Cloud Run also supported |
-
----
-
 ## Two ways to run this
 
 **Way 1** runs the whole stack on your own machine with one command. **Way 2** is Google Cloud — either use the already-running demo instance (nothing to install), or deploy your own copy to a VM you control. Pick whichever matches what you're trying to do.
@@ -202,6 +114,94 @@ chmod +x deploy.sh && ./deploy.sh
 Full walkthrough with firewall/billing detail: **[docs/DEPLOY_VM.md](docs/DEPLOY_VM.md)**. A managed Cloud Run alternative (autoscaling, no VM to babysit) also exists: **[infra/README.md](infra/README.md)**.
 
 > **e2-micro (the free-tier machine) cannot run this.** The stack is 11 containers totalling roughly 3.8 GB of memory limits; a 1 GB machine can't start it. e2-medium is the realistic minimum — Google's $300 trial credit covers it for roughly 11 months.
+
+---
+
+## What it actually does
+
+- **Photograph a meal** — three different vision models look at the photo independently, a reranker cross-checks their guesses, and the result is calories, protein, fat, and carbs per item — saved to your history automatically.
+- **Ask about your own data in plain language** — "What did I eat yesterday?", "How many steps today?", "Что я ел на этой неделе?" — answered by turning your question into a safe, read-only SQL query scoped to your account (never anyone else's).
+- **Ask general nutrition questions** — "Is keto safe with high blood pressure?" — answered from a knowledge base (RAG) plus a small clinical rules engine that checks your allergies and health conditions before suggesting anything.
+- **Track daily steps** — log manually or ask the chat, shown against your daily goal.
+- **Personalized calorie & macro targets** — enter weight, height, age, activity level and a goal (lose fat / maintain / build muscle) in Settings, and the app computes your target calories and protein using the Mifflin-St Jeor BMR equation, FAO/WHO activity multipliers, and published protein-per-kg ranges — not a guess, and not made up by an LLM.
+- **Fully localized** — Hebrew (RTL), English, and Russian across the entire UI *and* the AI's replies. Ask a question in Russian, get a grammatically correct Russian answer; switch languages and your past chat history is shown translated too.
+- **Admin panel** — a separate portal for managing users, on its own port, with its own access control.
+
+## Why multiple agents instead of one AI call
+
+A single model asked to "handle nutrition" tends to hallucinate — invent calorie numbers, invent SQL, invent food names it didn't actually see in the photo. Splitting the work into narrow specialists, each with one job and a strict contract, makes each piece easy to check and hard to fool:
+
+| Specialist | Job | Cannot do |
+|---|---|---|
+| **Vision agent** | Look at a photo, name the foods, estimate quantity | Doesn't know nutrition values — that's not its job |
+| **Nutrition agent** | Turn identified foods into calories/macros; give advice | Doesn't look at photos or touch the database |
+| **RAG agent** | Answer general nutrition questions from a knowledge base | Never sees *your* personal data |
+| **Text2SQL agent** | Answer questions about *your* logged meals/steps | Generated SQL is validated against an allowlist and force-scoped to your user ID before it ever touches the database — it cannot see or modify anyone else's rows, and it cannot write, only read |
+| **GraphDB agent** | Cross-check suggestions against your allergies/conditions | Small rules table (diabetes, peanut allergy, hypertension), not a general-purpose model |
+
+A workflow engine called **LangGraph** sits in front of all of them, in one place (the **Orchestrator**), and decides which specialist(s) a given message needs. Everything else — the three client apps, the API — never talks to the specialists directly.
+
+## Architecture
+
+```mermaid
+flowchart TB
+  subgraph Clients
+    M[Mobile app]
+    U[User Portal]
+    A[Admin Portal]
+  end
+
+  GW[API Gateway<br/>auth + REST]
+  LG[Orchestrator<br/>LangGraph — decides what to do]
+
+  V[Vision agent]
+  N[Nutrition agent]
+  R[RAG agent]
+  T[Text2SQL agent]
+  G[GraphDB agent — clinical rules]
+
+  DB[(Postgres + pgvector)]
+
+  M --> GW
+  U --> GW
+  A --> GW
+  GW --> LG
+  LG --> V
+  LG --> N
+  LG --> R
+  LG --> T
+  LG --> G
+  LG --> DB
+```
+
+**How one message travels through the system:**
+
+1. You send a chat message (text and/or a photo) from any client.
+2. The **API Gateway** checks you're logged in and forwards it to the **Orchestrator**.
+3. The Orchestrator's LangGraph workflow classifies your intent — is this a meal photo, a question about your own history, or a general question/request for advice? — and picks the path.
+4. That path calls only the specialist agents it needs, in order, over plain HTTP.
+5. The reply comes back through the gateway to whichever client you're using.
+
+| Your message looks like… | Intent | What runs |
+|---|---|---|
+| Has a photo attached | `meal_analysis` | Vision → Nutrition → GraphDB (safety check) → saved to your meals |
+| "What did I eat yesterday?" / "כמה קלוריות היום?" / "Сколько шагов сегодня?" | `history_query` | Text2SQL — reads only your rows |
+| "Is this diet safe for me?" / anything else | `general_chat` / advice | Knowledge base (RAG) → GraphDB safety check → Nutrition advice |
+
+Full sequence diagrams and per-agent detail: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**. Deep technical reference for every feature (image storage, SQL security model, RAG pipeline internals, i18n system): **[docs/TASKS.md](docs/TASKS.md)**.
+
+### Tech stack
+
+| Layer | Technology |
+|---|---|
+| Orchestration | LangGraph (`@langchain/langgraph`) — a state machine, not a database |
+| Backend services | Node.js + Express, one per agent |
+| Web apps | Next.js 15 (App Router) — user portal and admin portal |
+| Mobile | Expo / React Native |
+| Database | PostgreSQL with **pgvector** (for the knowledge-base search) |
+| AI models | Called via [OpenRouter](https://openrouter.ai) — vision, chat, and embedding models, swappable without code changes |
+| Auth | JWT in an httpOnly cookie, shared between the two web portals on the same host |
+| Containers | Docker Compose (local + single-VM production); Cloud Run also supported |
 
 ---
 
