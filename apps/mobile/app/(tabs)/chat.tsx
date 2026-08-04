@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useTranslation } from "react-i18next";
+import { localizeFoodDisplayName, localizeMealTitle } from "@nutriagent/shared/foodDisplayName";
 import { useAuth } from "@/context/AuthContext";
 import { API_URL, api } from "@/lib/api";
 import { setSelectedMealId } from "@/lib/selectedMeal";
@@ -79,7 +80,8 @@ function macrosOf(n: Nutrition): FlowerMacro[] {
 }
 
 export default function ChatScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const { token } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -204,14 +206,17 @@ export default function ChatScreen() {
                     <Text style={styles.matchText}>{matchPct}% match</Text>
                   </View>
                   <Text style={serif(16, { lineHeight: 20 })}>
-                    {item.mealAnalysis.items[0]?.foodType ?? "Logged meal"}
+                    {localizeMealTitle(
+                      item.mealAnalysis.items.map((i) => i.foodType),
+                      lang
+                    ) || item.mealAnalysis.items[0]?.foodType || "Logged meal"}
                   </Text>
                   <Kicker>Identified from photo</Kicker>
                   <View style={styles.itemPills}>
                     {item.mealAnalysis.items.map((i) => (
                       <View key={i.foodType} style={styles.itemPill}>
                         <Text style={styles.itemPillText}>
-                          {i.foodType} · {i.estimatedQuantity}
+                          {localizeFoodDisplayName(i.foodType, lang)} · {i.estimatedQuantity}
                         </Text>
                       </View>
                     ))}

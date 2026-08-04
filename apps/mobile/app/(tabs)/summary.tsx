@@ -1,6 +1,8 @@
 import { useCallback, useState } from "react";
 import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { localizeMealTitle } from "@nutriagent/shared/foodDisplayName";
 import { useAuth } from "@/context/AuthContext";
 import { API_URL, api } from "@/lib/api";
 import { setSelectedMealId } from "@/lib/selectedMeal";
@@ -34,6 +36,8 @@ function dayLabel(iso: string) {
 }
 
 export default function SummaryScreen() {
+  const { i18n } = useTranslation();
+  const lang = i18n.language;
   const { token } = useAuth();
   const [range, setRange] = useState<Range>("week");
   const [query, setQuery] = useState("");
@@ -91,7 +95,11 @@ export default function SummaryScreen() {
           ListEmptyComponent={<Text style={styles.empty}>No meals in this range yet — snap one from Chat.</Text>}
           renderItem={({ item }) => {
             const calories = item.items.reduce((s, i) => s + (i.nutritionValues?.calories || 0), 0);
-            const name = item.items.map((i) => i.foodType).join(", ") || "Logged meal";
+            const name =
+              localizeMealTitle(
+                item.items.map((i) => i.foodType),
+                lang
+              ) || "Logged meal";
             const uri = item.imageUrl
               ? item.imageUrl.startsWith("http")
                 ? item.imageUrl

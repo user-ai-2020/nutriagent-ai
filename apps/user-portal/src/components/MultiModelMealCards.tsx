@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useTranslation } from "react-i18next";
+import { localizeFoodDisplayName } from "@nutriagent/shared/foodDisplayName";
 import { FlowerMacro, NutritionFlower } from "@/components/NutritionFlower";
 import { muted, serif } from "@/lib/ui";
 
@@ -159,7 +160,8 @@ function PanelCard({
   highlight?: boolean;
   degraded?: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const avgConf = panel.items.length
     ? Math.round(
         (panel.items.reduce((s, i) => s + (i.visionConfidence ?? 0), 0) / panel.items.length) * 100
@@ -226,7 +228,7 @@ function PanelCard({
                 className="tag tag-outline"
                 style={{ fontSize: 11 }}
               >
-                {item.foodType}
+                {localizeFoodDisplayName(item.foodType, lang)}
               </span>
             ))}
           </div>
@@ -256,7 +258,8 @@ export function MultiModelMealCards({
   fusionMethod?: FusionMethod;
   fallbackModelLabel?: string;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const displayPanels = panelsForDisplay(panels, fusionMethod);
   const visionPanelCount = panels.filter((p) => p.modelId !== "reranker").length;
   const showRerankerScores =
@@ -385,7 +388,7 @@ export function MultiModelMealCards({
                   alignItems: "center",
                 }}
               >
-                <span>{s.foodType}</span>
+                <span>{localizeFoodDisplayName(s.foodType, lang)}</span>
                 <span className="tag tag-outline">{t("chat.modelsAgreement", { count: s.modelAgreement, total: visionPanelCount })}</span>
                 <span style={{ color: muted() }}>{t("chat.confShort", { pct: Math.round(s.avgConfidence * 100) })}</span>
                 {fusionMethod === "full" || fusionMethod === "single_model_only" ? (

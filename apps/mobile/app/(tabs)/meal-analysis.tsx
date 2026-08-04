@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { localizeFoodDisplayName, localizeMealTitle } from "@nutriagent/shared/foodDisplayName";
 import { useAuth } from "@/context/AuthContext";
 import { API_URL, api } from "@/lib/api";
 import { getSelectedMealId, setSelectedMealId } from "@/lib/selectedMeal";
@@ -26,7 +27,8 @@ interface Meal {
 }
 
 export default function MealAnalysisScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const { token } = useAuth();
   const [meal, setMeal] = useState<Meal | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,7 +98,11 @@ export default function MealAnalysisScreen() {
       ? meal.imageUrl
       : `${API_URL}${meal.imageUrl}`
     : null;
-  const name = meal.items.map((i) => i.foodType).join(", ") || "Logged meal";
+  const name =
+    localizeMealTitle(
+      meal.items.map((i) => i.foodType),
+      lang
+    ) || t("mealAnalysis.loggedMeal", { defaultValue: "Logged meal" });
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content}>
@@ -134,7 +140,7 @@ export default function MealAnalysisScreen() {
               <View style={styles.viewRow}>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <Text style={styles.itemName}>{item.foodType}</Text>
+                    <Text style={styles.itemName}>{localizeFoodDisplayName(item.foodType, lang)}</Text>
                     {corrected.includes(item.itemId) && <Tag variant="accent2">corrected</Tag>}
                   </View>
                   <Text style={styles.itemQty}>

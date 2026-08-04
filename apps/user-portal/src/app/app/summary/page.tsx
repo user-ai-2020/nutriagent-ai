@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { localizeMealTitle } from "@nutriagent/shared/foodDisplayName";
 import { apiBaseUrl, api } from "@/lib/api";
 import { Segmented } from "@/components/Segmented";
 import { mealTypeLabel } from "@/lib/mealType";
@@ -34,7 +35,8 @@ function timeLabel(iso: string) {
 }
 
 export default function SummaryPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const router = useRouter();
   const [range, setRange] = useState<Range>("week");
   const [search, setSearch] = useState("");
@@ -85,7 +87,11 @@ export default function SummaryPage() {
         )}
         {meals.map((meal) => {
           const calories = meal.items.reduce((sum, item) => sum + (item.nutritionValues?.calories ?? 0), 0);
-          const name = meal.items.map((i) => i.foodType).join(", ") || t("summary.loggedMeal");
+          const name =
+            localizeMealTitle(
+              meal.items.map((i) => i.foodType),
+              lang
+            ) || t("summary.loggedMeal");
           const src = meal.imageUrl
             ? meal.imageUrl.startsWith("http")
               ? meal.imageUrl

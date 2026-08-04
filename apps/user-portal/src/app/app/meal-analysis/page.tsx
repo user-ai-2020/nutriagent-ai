@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
+import { localizeFoodDisplayName, localizeMealTitle } from "@nutriagent/shared/foodDisplayName";
 import { apiBaseUrl, api } from "@/lib/api";
 import { CheckIcon, CloseIcon, PencilIcon } from "@/components/icons";
 import { mealTypeLabel } from "@/lib/mealType";
@@ -25,7 +26,8 @@ interface Meal {
 }
 
 export default function MealAnalysisPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const [selectedMealId, setSelectedMealId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -82,7 +84,11 @@ export default function MealAnalysisPage() {
       ? meal.imageUrl
       : `${apiBaseUrl()}${meal.imageUrl}`
     : null;
-  const name = meal.items.map((i: any) => i.foodType).join(", ") || t("mealAnalysis.loggedMeal");
+  const name =
+    localizeMealTitle(
+      meal.items.map((i) => i.foodType),
+      lang
+    ) || t("mealAnalysis.loggedMeal");
   const titleLong = name.length > 56 || meal.items.length > 2;
 
   return (
@@ -170,7 +176,7 @@ export default function MealAnalysisPage() {
                     <div className="na-meal-item-row">
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 600 }}>
-                          {item.foodType}
+                          {localizeFoodDisplayName(item.foodType, lang)}
                           {corrected.includes(item.itemId) && (
                             <span className="tag tag-accent-2" style={{ marginLeft: 6, fontSize: 9.5 }}>
                               {t("mealAnalysis.corrected")}

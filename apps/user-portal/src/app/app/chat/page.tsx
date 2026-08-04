@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CITATION_SOURCE_I18N_KEY, normalizeCitationSource } from "@nutriagent/shared/citation-sources";
+import { localizeFoodDisplayName } from "@nutriagent/shared/foodDisplayName";
 import { api, apiBaseUrl, apiChat, CHAT_API_TIMEOUT_MS } from "@/lib/api";
 import { Profile } from "@/lib/profile";
 import { muted } from "@/lib/ui";
@@ -42,12 +43,15 @@ function localizedMealText(
     warnings?: string[];
     tips?: string[];
   },
-  t: (key: string, opts?: Record<string, unknown>) => string
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  lang: string
 ): string | null {
   const items = msg.items ?? [];
   if (!items.length || !msg.totalNutrition) return null;
 
-  const itemList = items.map((i) => `${i.foodType} (${i.estimatedQuantity})`).join(", ");
+  const itemList = items
+    .map((i) => `${localizeFoodDisplayName(i.foodType, lang)} (${i.estimatedQuantity})`)
+    .join(", ");
   const n = msg.totalNutrition;
 
   return [
@@ -68,7 +72,7 @@ function localizedMealText(
     "",
     ...items.map((i) =>
       t("chat.mealItemLine", {
-        food: i.foodType,
+        food: localizeFoodDisplayName(i.foodType, lang),
         qty: i.estimatedQuantity,
         kcal: Math.round(i.nutrition?.calories ?? 0),
       })
@@ -766,7 +770,7 @@ export default function ChatPage() {
                   </span>
                 </div>
                 <div className="card-title" style={{ marginBottom: 2 }}>
-                  {msg.mealName}
+                  {localizeFoodDisplayName(msg.mealName, preferredLanguage) || msg.mealName}
                 </div>
                 <div style={{ fontSize: 11.5, color: muted(), marginBottom: 10 }}>
                   {t("chat.identifiedFromPhoto")}
@@ -783,7 +787,7 @@ export default function ChatPage() {
                         background: "var(--color-neutral-200)",
                       }}
                     >
-                      {item.foodType} · {item.estimatedQuantity}
+                      {localizeFoodDisplayName(item.foodType, preferredLanguage)} · {item.estimatedQuantity}
                     </span>
                   ))}
                 </div>
@@ -826,7 +830,7 @@ export default function ChatPage() {
                   {(() => {
                     // Prefer the locale-rendered version so switching language also
                     // updates messages already on screen / restored from history.
-                    const localized = localizedMealText(msg, t);
+                    const localized = localizedMealText(msg, t, preferredLanguage);
                     if (localized) return localized;
                     return (
                       <>
