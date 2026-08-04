@@ -43,6 +43,10 @@ jobs:
           - service: admin-portal
             dockerfile: apps/admin-portal/Dockerfile
             build_args: NEXT_PUBLIC_API_URL=http://localhost:3000
+          # One-shot job image used by docker-compose.prod.yml on the VM:
+          # migrations, LangGraph checkpoint tables, seed, USDA import.
+          - service: migrate
+            dockerfile: docker/migrate.Dockerfile
 
     steps:
       - uses: actions/checkout@v4

@@ -35,6 +35,12 @@ services:
   # Without the checkpoint tables the vision interrupt/resume path fails at runtime.
   migrate:
     image: ${DOCKERHUB_NAMESPACE}/nutriagent-migrate:${IMAGE_TAG:-latest}
+    # `build` as well as `image`: if the published image is missing, the VM can
+    # build it locally with `docker compose ... build migrate`. It is small
+    # (no service code) so this takes a few minutes, unlike the portals.
+    build:
+      context: .
+      dockerfile: docker/migrate.Dockerfile
     pull_policy: missing
     env_file:
       - path: .env
