@@ -35,7 +35,7 @@ Then:
 docker compose up -d
 ```
 
-That single command: pulls the nine pre-built service images plus Postgres and Redis, **applies the database schema automatically** (a one-shot `migrate` container runs first and the app services wait for it to finish before starting), and brings up the full stack — meal scanning, chat, history, dashboard, admin panel.
+That single command pulls the pre-built service images plus Postgres and Redis, **applies the database schema automatically** (a one-shot `migrate` container runs first — it pulls, applies all Prisma migrations plus the LangGraph checkpoint tables, and exits; the app services wait for it to finish before starting), and brings up the full stack — meal scanning, chat, history, dashboard, admin panel. No manual database step, ever — this exact sequence was verified end-to-end on a fresh clone before being written down here.
 
 Watch it come up with `docker compose ps` — every service should reach `healthy` within a couple of minutes. Then open:
 
