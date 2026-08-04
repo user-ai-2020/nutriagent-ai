@@ -1,157 +1,200 @@
 # NutriAgent AI
 
-AI-powered nutrition tracking app with a multi-agent architecture: **LangGraph** orchestrates Vision, Nutrition, RAG, Text2SQL, and a clinical GraphDB agent.
+**Take a photo of your meal. Get calories, macros, and nutrition advice — in Hebrew, English, or Russian.**
+
+NutriAgent is a nutrition-tracking app built around a team of specialist AI agents instead of one big model doing everything. You snap a photo or type a question in chat, and the app figures out what you're asking (log a meal? check history? get advice?) and routes it to the right specialist automatically.
 
 Repository: <https://github.com/user-ai-2020/nutriagent-ai>
 
-**For deep technical detail on every feature** (image storage, Text2SQL security, RAG pipeline, i18n, etc.), see **[docs/TASKS.md](docs/TASKS.md)**. Agent standing rules for Cursor / Antigravity: **[AGENTS.md](AGENTS.md)**. This README only covers what you need to get running and find your way around.
+---
 
-## Run It
+## What it actually does
 
-Only prerequisite: Docker Desktop (or Docker Engine + Compose). No Node/pnpm install needed for this path.
+- **Photograph a meal** — three different vision models look at the photo independently, a reranker cross-checks their guesses, and the result is calories, protein, fat, and carbs per item — saved to your history automatically.
+- **Ask about your own data in plain language** — "What did I eat yesterday?", "How many steps today?", "Что я ел на этой неделе?" — answered by turning your question into a safe, read-only SQL query scoped to your account (never anyone else's).
+- **Ask general nutrition questions** — "Is keto safe with high blood pressure?" — answered from a knowledge base (RAG) plus a small clinical rules engine that checks your allergies and health conditions before suggesting anything.
+- **Track daily steps** — log manually or ask the chat, shown against your daily goal.
+- **Personalized calorie & macro targets** — enter weight, height, age, activity level and a goal (lose fat / maintain / build muscle) in Settings, and the app computes your target calories and protein using the Mifflin-St Jeor BMR equation, FAO/WHO activity multipliers, and published protein-per-kg ranges — not a guess, and not made up by an LLM.
+- **Fully localized** — Hebrew (RTL), English, and Russian across the entire UI *and* the AI's replies. Ask a question in Russian, get a grammatically correct Russian answer; switch languages and your past chat history is shown translated too.
+- **Admin panel** — a separate portal for managing users, on its own port, with its own access control.
+
+## Why multiple agents instead of one AI call
+
+A single model asked to "handle nutrition" tends to hallucinate — invent calorie numbers, invent SQL, invent food names it didn't actually see in the photo. Splitting the work into narrow specialists, each with one job and a strict contract, makes each piece easy to check and hard to fool:
+
+| Specialist | Job | Cannot do |
+|---|---|---|
+| **Vision agent** | Look at a photo, name the foods, estimate quantity | Doesn't know nutrition values — that's not its job |
+| **Nutrition agent** | Turn identified foods into calories/macros; give advice | Doesn't look at photos or touch the database |
+| **RAG agent** | Answer general nutrition questions from a knowledge base | Never sees *your* personal data |
+| **Text2SQL agent** | Answer questions about *your* logged meals/steps | Generated SQL is validated against an allowlist and force-scoped to your user ID before it ever touches the database — it cannot see or modify anyone else's rows, and it cannot write, only read |
+| **GraphDB agent** | Cross-check suggestions against your allergies/conditions | Small rules table (diabetes, peanut allergy, hypertension), not a general-purpose model |
+
+A workflow engine called **LangGraph** sits in front of all of them, in one place (the **Orchestrator**), and decides which specialist(s) a given message needs. Everything else — the three client apps, the API — never talks to the specialists directly.
+
+## Architecture
+
+```mermaid
+flowchart TB
+  subgraph Clients
+    M[Mobile app]
+    U[User Portal]
+    A[Admin Portal]
+  end
+
+  GW[API Gateway<br/>auth + REST]
+  LG[Orchestrator<br/>LangGraph — decides what to do]
+
+  V[Vision agent]
+  N[Nutrition agent]
+  R[RAG agent]
+  T[Text2SQL agent]
+  G[GraphDB agent — clinical rules]
+
+  DB[(Postgres + pgvector)]
+
+  M --> GW
+  U --> GW
+  A --> GW
+  GW --> LG
+  LG --> V
+  LG --> N
+  LG --> R
+  LG --> T
+  LG --> G
+  LG --> DB
+```
+
+**How one message travels through the system:**
+
+1. You send a chat message (text and/or a photo) from any client.
+2. The **API Gateway** checks you're logged in and forwards it to the **Orchestrator**.
+3. The Orchestrator's LangGraph workflow classifies your intent — is this a meal photo, a question about your own history, or a general question/request for advice? — and picks the path.
+4. That path calls only the specialist agents it needs, in order, over plain HTTP.
+5. The reply comes back through the gateway to whichever client you're using.
+
+| Your message looks like… | Intent | What runs |
+|---|---|---|
+| Has a photo attached | `meal_analysis` | Vision → Nutrition → GraphDB (safety check) → saved to your meals |
+| "What did I eat yesterday?" / "כמה קלוריות היום?" / "Сколько шагов сегодня?" | `history_query` | Text2SQL — reads only your rows |
+| "Is this diet safe for me?" / anything else | `general_chat` / advice | Knowledge base (RAG) → GraphDB safety check → Nutrition advice |
+
+Full sequence diagrams and per-agent detail: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**. Deep technical reference for every feature (image storage, SQL security model, RAG pipeline internals, i18n system): **[docs/TASKS.md](docs/TASKS.md)**.
+
+### Tech stack
+
+| Layer | Technology |
+|---|---|
+| Orchestration | LangGraph (`@langchain/langgraph`) — a state machine, not a database |
+| Backend services | Node.js + Express, one per agent |
+| Web apps | Next.js 15 (App Router) — user portal and admin portal |
+| Mobile | Expo / React Native |
+| Database | PostgreSQL with **pgvector** (for the knowledge-base search) |
+| AI models | Called via [OpenRouter](https://openrouter.ai) — vision, chat, and embedding models, swappable without code changes |
+| Auth | JWT in an httpOnly cookie, shared between the two web portals on the same host |
+| Containers | Docker Compose (local + single-VM production); Cloud Run also supported |
+
+---
+
+## Run it locally
+
+**Only prerequisite:** Docker Desktop (or Docker Engine + Compose). You don't need Node.js or pnpm installed for this path — everything runs in containers.
 
 ```bash
 cp .env.example .env
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
-Wait for the containers to become healthy (`docker compose ps`), then open:
+Wait for containers to report healthy (`docker compose ps`), then open:
 
 | App | URL | Login |
 |---|---|---|
 | User Portal | http://localhost:3008 | `user@nutriagent.ai` / `user123` |
 | Admin Portal | http://localhost:3007 | `admin@nutriagent.ai` / `admin123` |
 
-No `OPENROUTER_API_KEY` set → the app runs in **mock mode** (sample vision/chat/RAG data, no external calls, nothing to pay for). To use real AI, add a free key from [openrouter.ai/keys](https://openrouter.ai/keys) to `OPENROUTER_API_KEY` in `.env`, then `docker compose restart`.
+**No API key? No problem.** With `OPENROUTER_API_KEY` left blank, the app runs in **mock mode** — realistic sample data for meal scans, chat, and search, no external calls, nothing to pay for. To turn on real AI: get a free key at [openrouter.ai/keys](https://openrouter.ai/keys), set `OPENROUTER_API_KEY` in `.env`, then `docker compose restart`.
 
 Stop everything: `docker compose down`.
 
-Need the tester/grader flow (pre-built Docker Hub images), or want to run services individually with `pnpm` instead of Docker? See **Quick Start** and **Local Node dev** below.
-
-## Architecture
-
-Full Mermaid graphs (all three paths + sequences): **[docs/architecture/architecture-graph.md](docs/architecture/architecture-graph.md)**.
-
-```mermaid
-flowchart TB
-  START([Chat: text and/or photo]) --> GW[API Gateway :3000]
-  GW --> CI{LangGraph classifyIntent :3001}
-
-  CI -->|image| PA
-  CI -->|history keywords| PB
-  CI -->|advice / default| PC
-
-  subgraph PA["Path A — meal_analysis"]
-    A1[RAG /retrieve] --> A2[Vision /analyze]
-    A2 --> A3[Nutrition /calculate]
-    A3 --> A4[GraphDB /recommend]
-    A4 --> A5[saveMeal]
-  end
-
-  subgraph PB["Path B — history_query"]
-    B1[Text2SQL /query]
-  end
-
-  subgraph PC["Path C — advice / chat"]
-    C1[RAG /retrieve] --> C2[GraphDB /recommend]
-    C2 --> C3[Nutrition /advise]
-  end
-```
-
-### How a request flows
-
-Chat (text or photo) → `POST /api/chat/message` on the **API Gateway** → `POST /process` on the **Orchestrator**. The orchestrator runs a compiled **LangGraph** `StateGraph` (`services/orchestrator/src/graph.ts`), invoked from `services/orchestrator/src/index.ts`.
-
-| Intent | Typical trigger | Graph path |
-|---|---|---|
-| `meal_analysis` | Image attached | RAG `/retrieve` → Vision `/analyze` → Nutrition `/calculate` → GraphDB `/recommend` → save meal |
-| `history_query` | “calories today”, “מה אכלתי”, week/history | Text2SQL `/query` |
-| `nutrition_advice` / `restaurant_recommendation` / `general_chat` | Keywords / default | RAG `/retrieve` → GraphDB `/recommend` → Nutrition `/advise` |
-
-### Where each piece lives
-
-| Piece | Location | Notes |
-|---|---|---|
-| **LangGraph** | `services/orchestrator` — `@langchain/langgraph`, `src/graph.ts` | Workflow / routing only; not a database |
-| **GraphDB agent** | `services/graphdb-agent` — `POST /recommend` | In-memory clinical map (`CLINICAL_GRAPH`: diabetes, peanut allergy, hypertension) — PoC, not Neo4j |
-| **Text2SQL** | `services/text2sql-agent` | Templates + LLM SQL → validate → scoped SELECT |
-| **RAG** | `services/rag-agent` | Chat uses fast `/retrieve` (hybrid KB); full `/query` web-fallback is separate |
-| **Vision / Nutrition** | `services/vision-agent`, `services/nutrition-agent` | Meal scan ensemble + macros / advice |
-| **Shared cookie SSO** | `@nutriagent/shared/authCookie` | `nutriagent_token` shared across portals on the same hostname |
-
-## Quick Start (Docker — testers & graders)
-
-```bash
-cp .env.tester.example .env    # set DOCKERHUB_NAMESPACE + OPENROUTER_API_KEY (required)
-docker compose up -d           # full stack: meal scan, chat, history, admin portal
-```
-
-Get an OpenRouter key at [openrouter.ai/keys](https://openrouter.ai/keys). A short evaluation session (meal scans + chat on default models) typically costs well under $1.
-
-Demo login: `user@nutriagent.ai` / `user123` (user app on **3008**). Admin: `admin@nutriagent.ai` / `admin123` on **Admin Portal :3007**. Signing in once on either portal writes a shared `nutriagent_token` cookie (same host: use `localhost` or `127.0.0.1` consistently — they do not share cookies). Admins already signed in on **3008** open **3007** without logging in again; role checks are unchanged (Users still get denied on the admin portal / API 403).
-
-Developers: use @`.env.example` (mock mode works without a key). Build all app images from source instead of pulling from Docker Hub:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
-```
-
-## Run from Docker Hub
-
-Set `DOCKERHUB_NAMESPACE` in `.env` to your Docker Hub username or org (same value as the `DOCKERHUB_USERNAME` GitHub secret). CI pushes `:latest` and a git-SHA tag on every merge to `main`; pin with `IMAGE_TAG=<sha>` if needed. First-time Hub + GitHub setup: [docs/DOCKER_HUB_SETUP.md](docs/DOCKER_HUB_SETUP.md).
-
-## Local Node dev (optional)
+### Prefer running services individually with pnpm?
 
 ```bash
 pnpm install
 pnpm db:generate
 pnpm db:migrate
 pnpm db:seed              # demo accounts
-pnpm db:seed:demo         # optional: 30 days of realistic synthetic meal history
+pnpm db:seed:demo         # optional: 30 days of realistic sample meal history
 ```
 
-**Run everything:**
+Then, each in its own terminal:
 
 ```bash
-pnpm dev:api                              # API Gateway — 3000
-cd services/orchestrator && pnpm dev      # 3001
-cd services/vision-agent && pnpm dev      # 3002
-cd services/nutrition-agent && pnpm dev   # 3003
-cd services/rag-agent && pnpm dev         # 3004
-cd services/text2sql-agent && pnpm dev    # 3005
-cd services/graphdb-agent && pnpm dev     # 3006
-pnpm dev:admin                            # Admin Portal — 3007
-cd apps/user-portal && pnpm dev           # User Portal — 3008
-pnpm dev:mobile                           # Expo — 8081
+pnpm dev:api                              # API Gateway         — :3000
+cd services/orchestrator && pnpm dev      # Orchestrator        — :3001
+cd services/vision-agent && pnpm dev      # Vision agent        — :3002
+cd services/nutrition-agent && pnpm dev   # Nutrition agent     — :3003
+cd services/rag-agent && pnpm dev         # RAG agent           — :3004
+cd services/text2sql-agent && pnpm dev    # Text2SQL agent      — :3005
+cd services/graphdb-agent && pnpm dev     # GraphDB agent       — :3006
+pnpm dev:admin                            # Admin Portal        — :3007
+cd apps/user-portal && pnpm dev           # User Portal         — :3008
+pnpm dev:mobile                           # Mobile (Expo)       — :8081
 ```
 
-| Role | Email | Password |
-|---|---|---|
-| User | `user@nutriagent.ai` | `user123` |
-| Admin | `admin@nutriagent.ai` | `admin123` |
+---
 
-## Troubleshooting (Docker testers)
+## Running as a tester / grader (pre-built images)
 
-- **Something won't start:** `docker compose ps` — look for `unhealthy` or `Exit`. Then `docker compose logs <service>` (e.g. `api-gateway`, `rag-agent`).
-- **Missing config:** logs show `Missing required environment variables:` with the exact name — fix `.env` or see `.env.example` (developers only).
-- **Port already in use:** stop the other app on 3000/3008, or change the host port in @docker-compose.yml.
-- **History questions fail** ("how many calories today"): confirm `text2sql-agent` is healthy (`docker compose ps`). It starts by default — no special profile needed.
-- **Admin portal access denied**: only users with the **Admin** role can use http://localhost:3007; regular users see a clear denial (API returns 403). If you already signed in on **3008**, **3007** reuses that session (no second login) but still enforces Admin role.
-- **Admin asks for login again after 3008**: use the same hostname on both ports (`127.0.0.1` vs `localhost` are different cookie jars).
-- **Meal scan or chat fails / looks broken:** confirm `OPENROUTER_API_KEY` is set in `.env` (required for testers — get one at [openrouter.ai/keys](https://openrouter.ai/keys)). Services start without a key, but AI features need it.
+No need to build anything — pulls ready-made images from Docker Hub.
 
-Developer note: if `db:migrate` can't find `DATABASE_URL`, see [docs/TASKS.md](docs/TASKS.md#environment-variables).
+```bash
+cp .env.tester.example .env    # set DOCKERHUB_NAMESPACE + OPENROUTER_API_KEY (both required)
+docker compose up -d           # full stack: meal scan, chat, history, admin portal
+```
+
+Get a key at [openrouter.ai/keys](https://openrouter.ai/keys) — a full evaluation session (several meal scans + chat exchanges on the default models) typically costs well under $1.
+
+- User app: http://localhost:3008 — `user@nutriagent.ai` / `user123`
+- Admin app: http://localhost:3007 — `admin@nutriagent.ai` / `admin123`
+
+Signing in on either portal writes a shared session cookie, so if you log in on 3008 and then open 3007, you won't be asked to log in again (though the Admin role check still applies — a regular user account still gets denied on the admin portal). Use the **same hostname** for both — `localhost` and `127.0.0.1` are treated as different sites and won't share the session.
+
+## Live demo
+
+A running instance on Google Cloud, deployed straight from this repository:
+
+| | |
+|---|---|
+| User app | http://34.165.44.201:3008 |
+| Admin app | http://34.165.44.201:3007 |
+| API health check | http://34.165.44.201:3000/health |
+| Login | `user@nutriagent.ai` / `user123` (admin: `admin@nutriagent.ai` / `admin123`) |
+
+This is a course-project demo box, not a production deployment: it serves plain HTTP (no TLS yet) and uses the same demo credentials as local. Don't put real personal data into it.
+
+---
+
+## Troubleshooting
+
+- **Something won't start** → `docker compose ps`, look for `unhealthy` or `Exit`, then `docker compose logs <service>` (e.g. `api-gateway`, `rag-agent`).
+- **Missing config** → logs will say `Missing required environment variables:` with the exact name. Check `.env` against `.env.example`.
+- **Port already in use** → stop whatever else is on 3000/3008, or change the host port mapping in `docker-compose.yml`.
+- **History questions fail** ("how many calories today", "Сколько шагов") → confirm `text2sql-agent` is healthy in `docker compose ps`. It's on by default, no special profile needed.
+- **Meal scan or chat looks broken / gives placeholder answers** → confirm `OPENROUTER_API_KEY` is actually set — without it you're in mock mode by design.
+- **Admin portal says access denied** → only accounts with the Admin role can use port 3007; a regular User account is correctly denied (403), that's not a bug.
+- **Logged in on 3008 but 3007 asks again** → you're mixing `localhost` and `127.0.0.1`. Pick one and use it everywhere.
+
+Developer-specific issues (missing `DATABASE_URL`, Prisma errors, etc.): [docs/TASKS.md](docs/TASKS.md#environment-variables).
 
 ## Environment variables
 
-**Testers:** @`.env.tester.example` — two required values (`DOCKERHUB_NAMESPACE`, `OPENROUTER_API_KEY`).  
-**Developers:** @`.env.example` (full list; mock mode optional).
-
 | Variable | Testers | Developers | What it's for |
 |---|---|---|---|
-| `DOCKERHUB_NAMESPACE` | Required | If using Docker pull | Docker Hub username/org |
-| `OPENROUTER_API_KEY` | **Required** | Optional (mock without) | Live vision, reranker, RAG, chat, Text2SQL |
-| `DATABASE_URL` / `JWT_SECRET` | Auto in Compose | See `.env.example` | Set by @docker-compose.yml for Docker runs |
+| `DOCKERHUB_NAMESPACE` | Required | Only if pulling images | Docker Hub username/org the images live under |
+| `OPENROUTER_API_KEY` | **Required** | Optional — mock mode without it | Powers vision, chat, RAG, and Text2SQL's answer-writing step |
+| `DATABASE_URL` / `JWT_SECRET` | Set automatically by Compose | See `.env.example` | Connection string + session signing key |
+
+Full templates: `.env.tester.example` (testers, two required values) and `.env.example` (developers, full list).
 
 ## Project layout
 
@@ -159,104 +202,56 @@ Developer note: if `db:migrate` can't find `DATABASE_URL`, see [docs/TASKS.md](d
 apps/        mobile (Expo) · user-portal (Next.js) · admin-portal (Next.js)
 services/    api-gateway · orchestrator (LangGraph) · vision-agent · nutrition-agent
              rag-agent · text2sql-agent · graphdb-agent
-packages/    db (Prisma) · shared (types, auth cookie, locales he/en/ru, storage)
-docs/        specs, ERD, and the full technical reference (TASKS.md)
-infra/       GCP Terraform (Cloud Run, Cloud SQL, Memorystore)
-AGENTS.md    standing instructions for AI coding agents (Cursor + Antigravity)
-.agents/     Antigravity workspace skills (live-verify playbook)
+packages/    db (Prisma schema + migrations) · shared (types, auth, locales, storage)
+docs/        architecture diagrams, ERD, deep technical reference (TASKS.md)
+infra/       GCP Cloud Run setup (alternative to the single-VM deploy)
 ```
 
-| App/Service | Port |
-|---|---|
-| API Gateway | 3000 |
-| Orchestrator (LangGraph) | 3001 |
-| Vision Agent | 3002 |
-| Nutrition Agent | 3003 |
-| RAG Agent | 3004 |
-| Text2SQL Agent | 3005 |
-| GraphDB Agent (clinical PoC) | 3006 |
-| Admin Portal | 3007 |
-| User Portal | 3008 |
-| Mobile (Expo) | 8081 |
+| Service | Port | What it does |
+|---|---|---|
+| API Gateway | 3000 | Auth, meals, dashboard REST API; forwards AI work to the orchestrator |
+| Orchestrator | 3001 | Runs the LangGraph workflow — this is "the brain" |
+| Vision agent | 3002 | Multi-model meal photo recognition |
+| Nutrition agent | 3003 | Macro calculation + chat-style nutrition advice |
+| RAG agent | 3004 | Knowledge-base search for general nutrition questions |
+| Text2SQL agent | 3005 | Turns your questions into safe, scoped SQL over your own data |
+| GraphDB agent | 3006 | Clinical safety cross-check (allergies, conditions) |
+| Admin Portal | 3007 | User management, separate from the main app |
+| User Portal | 3008 | The main app |
+| Mobile (Expo) | 8081 | React Native client |
 
-## What it does
+---
 
-- **Meal scanning** — photo → LangGraph meal path → 3 vision models + reranker → nutrition calc → GraphDB tips → saved meal (placeholder / no-food detections are not persisted as real meals)
-- **Smart chat** — LangGraph routes to Text2SQL (history), Nutrition advise + GraphDB (advice), or meal analysis when an image is attached
-- **Dashboard** — calorie budget, meal split, steps
-- **i18n (Hebrew / English / Russian)** — UI + AI replies; language only via Settings; RTL for Hebrew; default response language `en`
-- **Dark UI** — single dark theme across portals/mobile
-- **Admin panel** — separate app on **3007**; shared login cookie with user portal when hostname matches
-- **Agent tooling** — Cursor and Google Antigravity both work on this repo (`AGENTS.md` + `.agents/skills/`); neither replaces the other
+## Deploying your own copy
 
-## AI Configuration
-
-**Testers:** a real `OPENROUTER_API_KEY` is required (see Quick Start above) — you evaluate the live pipeline: LangGraph orchestration, vision ensemble, reranker, RAG retrieval, Text2SQL history, GraphDB clinical tips, and LLM-backed chat.
-
-**Developers:** leave `OPENROUTER_API_KEY` empty in @`.env.example` for mock mode with sample data during local work. Model choices, RAG tuning, and Text2SQL security guarantees are in [docs/TASKS.md](docs/TASKS.md).
-
-## Deployment (GCP)
-
-Two supported paths — pick one:
+Two supported paths:
 
 | | Single VM | Cloud Run |
 |---|---|---|
 | Guide | **[docs/DEPLOY_VM.md](docs/DEPLOY_VM.md)** | **[infra/README.md](infra/README.md)** |
-| How | One Compute Engine VM, Docker Compose | 9 managed services, autoscaling |
-| Machine | e2-medium (4 GB) — the stack needs ~4.1 GB | scales to zero when idle |
-| Database | Postgres container on the VM | Cloud SQL, private IP |
-| Cost | ~$27/mo | ~$25–30/mo (Cloud SQL) + ~$35 (Redis) |
-| Best for | course demo, simplest to reason about | closer to production |
+| How | One Compute Engine VM running Docker Compose | 9 managed, autoscaling services |
+| Machine size | e2-medium (4 GB) — the full stack needs ~3.8 GB | Scales to zero when idle |
+| Database | Postgres in a container on the VM | Cloud SQL, private IP |
+| Best for | Simplest to reason about, course-project scale | Closer to a real production setup |
 
-**Single VM — the short version:**
+**Single VM, short version** (after cloning onto the VM):
 
 ```bash
-# on the VM, after cloning
-cp .env.production.example .env && vi .env   # set JWT_SECRET, DOCKERHUB_NAMESPACE, keys
+cp .env.production.example .env && vi .env   # set JWT_SECRET, DOCKERHUB_NAMESPACE, API key
 chmod +x deploy.sh && ./deploy.sh
 ```
 
-`deploy.sh` installs Docker, adds swap, pulls images, runs migrations **and the
-LangGraph checkpoint tables**, seeds demo users, and starts everything.
+`deploy.sh` installs Docker, adds swap space, pulls the pre-built images, runs database migrations (including the LangGraph checkpoint tables), seeds demo accounts, and starts everything. It refuses to start if `JWT_SECRET` is missing or still the development default — that check exists specifically so a real deployment can't accidentally go live unsecured.
 
-**Cloud Run — the short version:**
+> **A note on the free tier:** e2-micro (1 GB RAM) genuinely cannot run this — the stack is 11 containers totalling roughly 3.8 GB of memory limits. e2-medium is the realistic minimum; Google's $300 trial credit covers roughly 11 months of it.
 
-```bash
-GITHUB_REPO=user-ai-2020/nutriagent-ai OPENROUTER_API_KEY=sk-or-v1-... ./infra/gcp-setup.sh
-git push origin main            # CI builds + pushes images
-./infra/deploy-services.sh
-./infra/run-migrations.sh
-```
+### How secrets are handled
 
-> **e2-micro (free tier) is not viable.** The stack is 11 containers totalling
-> ~3.8 GB of memory limits; 1 GB cannot start it. The $300 trial credit covers an
-> e2-medium for roughly 11 months.
+No secret is ever committed to this repository. `.gitignore` blocks every `.env*` file and only allows the `*.example` templates back in. Real values live in exactly one of:
 
-### Secrets
-
-No secret is ever committed. `.gitignore` denies every `.env*` variant and
-re-allows only `*.example` templates. Production values live in:
-
-- **VM:** `.env` on the machine, created from `.env.production.example`
-- **Cloud Run:** Secret Manager — the DB password and `JWT_SECRET` are generated
-  by `infra/gcp-setup.sh` and never printed or written to disk
-- **CI:** GitHub repository secrets, with Workload Identity Federation instead of
-  a long-lived service-account key
-
-`deploy.sh` refuses to start if `JWT_SECRET` is missing or still the dev default.
-
-## Ongoing diagnostics
-
-While the stack runs, use `scripts/diagnostics.mjs` on demand (checks do not run automatically):
-
-```bash
-node scripts/diagnostics.mjs --once                              # run now, exit 1 if unhealthy
-node scripts/diagnostics.mjs --serve                               # wait for POST http://localhost:3099/diagnostics/run
-curl -X POST http://localhost:3099/diagnostics/run                 # trigger a run against serve mode
-COMPOSE_PROFILES=monitor docker compose up -d diagnostic-monitor # idle server; POST to run
-```
-
-See `docker/README.md` for env vars (`DIAGNOSTIC_FAILURE_THRESHOLD`, `DIAGNOSTIC_DISABLED`).
+- **VM deployments** — a `.env` file on the machine itself, created from `.env.production.example`
+- **Cloud Run** — Google Secret Manager; the DB password and JWT secret are generated automatically and never written to disk or printed to a log
+- **CI (GitHub Actions)** — repository secrets, using Workload Identity Federation rather than a long-lived key file
 
 ## License
 
