@@ -96,72 +96,70 @@ Full sequence diagrams and per-agent detail: **[docs/ARCHITECTURE.md](docs/ARCHI
 
 ---
 
-## Run it locally
+## Two ways to run this
 
-**Only prerequisite:** Docker Desktop (or Docker Engine + Compose). You don't need Node.js or pnpm installed for this path — everything runs in containers.
+**Way 1** runs the whole stack on your own machine with one command. **Way 2** is Google Cloud — either use the already-running demo instance (nothing to install), or deploy your own copy to a VM you control. Pick whichever matches what you're trying to do.
+
+### Way 1 — Clone the repo, then `docker compose up`
+
+**Only prerequisite:** Docker Desktop (or Docker Engine + Compose). You don't need Node.js or pnpm installed — every service, including the database, runs in a container.
 
 ```bash
-cp .env.example .env
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+git clone https://github.com/user-ai-2020/nutriagent-ai.git
+cd nutriagent-ai
+cp .env.tester.example .env
 ```
 
-Wait for containers to report healthy (`docker compose ps`), then open:
+Open `.env` and set two values:
+
+```
+DOCKERHUB_NAMESPACE=userai124356      # where the pre-built images live
+OPENROUTER_API_KEY=sk-or-v1-...       # get one free at openrouter.ai/keys
+```
+
+Then:
+
+```bash
+docker compose up -d
+```
+
+That single command: pulls the nine pre-built service images plus Postgres and Redis, **applies the database schema automatically** (a one-shot `migrate` container runs first and the app services wait for it to finish before starting), and brings up the full stack — meal scanning, chat, history, dashboard, admin panel.
+
+Watch it come up with `docker compose ps` — every service should reach `healthy` within a couple of minutes. Then open:
 
 | App | URL | Login |
 |---|---|---|
 | User Portal | http://localhost:3008 | `user@nutriagent.ai` / `user123` |
 | Admin Portal | http://localhost:3007 | `admin@nutriagent.ai` / `admin123` |
 
-**No API key? No problem.** With `OPENROUTER_API_KEY` left blank, the app runs in **mock mode** — realistic sample data for meal scans, chat, and search, no external calls, nothing to pay for. To turn on real AI: get a free key at [openrouter.ai/keys](https://openrouter.ai/keys), set `OPENROUTER_API_KEY` in `.env`, then `docker compose restart`.
+**No OpenRouter key?** Leave it blank and the app runs in **mock mode** — realistic sample data for meal scans, chat, and search, no external calls, nothing to pay for. It just won't be *live* AI. A real key costs well under $1 for a full test session (several meal scans + chat exchanges).
 
-Stop everything: `docker compose down`.
+Stop everything: `docker compose down`. Wipe the database too: `docker compose down -v`.
 
-### Prefer running services individually with pnpm?
+**Prefer to build from source instead of pulling images?**
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+**Prefer running services individually with pnpm, outside Docker?**
 
 ```bash
 pnpm install
-pnpm db:generate
-pnpm db:migrate
+pnpm db:generate && pnpm db:migrate
 pnpm db:seed              # demo accounts
 pnpm db:seed:demo         # optional: 30 days of realistic sample meal history
 ```
 
-Then, each in its own terminal:
-
-```bash
-pnpm dev:api                              # API Gateway         — :3000
-cd services/orchestrator && pnpm dev      # Orchestrator        — :3001
-cd services/vision-agent && pnpm dev      # Vision agent        — :3002
-cd services/nutrition-agent && pnpm dev   # Nutrition agent     — :3003
-cd services/rag-agent && pnpm dev         # RAG agent           — :3004
-cd services/text2sql-agent && pnpm dev    # Text2SQL agent      — :3005
-cd services/graphdb-agent && pnpm dev     # GraphDB agent       — :3006
-pnpm dev:admin                            # Admin Portal        — :3007
-cd apps/user-portal && pnpm dev           # User Portal         — :3008
-pnpm dev:mobile                           # Mobile (Expo)       — :8081
-```
+Then, each in its own terminal: `pnpm dev:api` (:3000), `cd services/orchestrator && pnpm dev` (:3001), `cd services/vision-agent && pnpm dev` (:3002), `cd services/nutrition-agent && pnpm dev` (:3003), `cd services/rag-agent && pnpm dev` (:3004), `cd services/text2sql-agent && pnpm dev` (:3005), `cd services/graphdb-agent && pnpm dev` (:3006), `pnpm dev:admin` (:3007), `cd apps/user-portal && pnpm dev` (:3008).
 
 ---
 
-## Running as a tester / grader (pre-built images)
+### Way 2 — Google Cloud (GCP)
 
-No need to build anything — pulls ready-made images from Docker Hub.
+Two variants: use the demo that's already running, or stand up your own.
 
-```bash
-cp .env.tester.example .env    # set DOCKERHUB_NAMESPACE + OPENROUTER_API_KEY (both required)
-docker compose up -d           # full stack: meal scan, chat, history, admin portal
-```
-
-Get a key at [openrouter.ai/keys](https://openrouter.ai/keys) — a full evaluation session (several meal scans + chat exchanges on the default models) typically costs well under $1.
-
-- User app: http://localhost:3008 — `user@nutriagent.ai` / `user123`
-- Admin app: http://localhost:3007 — `admin@nutriagent.ai` / `admin123`
-
-Signing in on either portal writes a shared session cookie, so if you log in on 3008 and then open 3007, you won't be asked to log in again (though the Admin role check still applies — a regular user account still gets denied on the admin portal). Use the **same hostname** for both — `localhost` and `127.0.0.1` are treated as different sites and won't share the session.
-
-## Live demo
-
-A running instance on Google Cloud, deployed straight from this repository:
+#### Use the live demo — nothing to install
 
 | | |
 |---|---|
@@ -170,7 +168,40 @@ A running instance on Google Cloud, deployed straight from this repository:
 | API health check | http://34.165.44.201:3000/health |
 | Login | `user@nutriagent.ai` / `user123` (admin: `admin@nutriagent.ai` / `admin123`) |
 
-This is a course-project demo box, not a production deployment: it serves plain HTTP (no TLS yet) and uses the same demo credentials as local. Don't put real personal data into it.
+This is a single Compute Engine VM (`nutriagent-prod`, e2-medium, `me-west1-a`) running exactly the images this repository's CI builds — same containers as Way 1, just already up. It's a course-project demo, not production: plain HTTP (no TLS yet), shared demo credentials. Don't put real personal data into it.
+
+#### Deploy your own copy
+
+```bash
+# 1. Create the VM (from Cloud Shell or gcloud CLI)
+gcloud compute instances create nutriagent-prod \
+  --zone=me-west1-a --machine-type=e2-medium \
+  --image-family=ubuntu-2204-lts --image-project=ubuntu-os-cloud \
+  --boot-disk-size=20GB --tags=nutriagent
+
+# 2. Open the ports it needs (once per project)
+gcloud compute firewall-rules create allow-nutriagent-ports \
+  --target-tags=nutriagent --allow=tcp:3000,tcp:3007,tcp:3008
+
+# 3. SSH in
+gcloud compute ssh nutriagent-prod --zone=me-west1-a
+
+# 4. On the VM: clone and configure
+git clone https://github.com/user-ai-2020/nutriagent-ai.git ~/nutriagent
+cd ~/nutriagent
+cp .env.production.example .env
+openssl rand -hex 32     # paste the output in as JWT_SECRET
+vi .env                  # set JWT_SECRET, DOCKERHUB_NAMESPACE, OPENROUTER_API_KEY, CORS_ORIGIN
+
+# 5. Deploy
+chmod +x deploy.sh && ./deploy.sh
+```
+
+`deploy.sh` installs Docker, adds swap space, pulls the images, runs the same migration step Way 1 runs locally, seeds demo accounts, and starts everything. It refuses to start if `JWT_SECRET` is missing or still the development default — on purpose, so a real deployment can't accidentally go live unsecured.
+
+Full walkthrough with firewall/billing detail: **[docs/DEPLOY_VM.md](docs/DEPLOY_VM.md)**. A managed Cloud Run alternative (autoscaling, no VM to babysit) also exists: **[infra/README.md](infra/README.md)**.
+
+> **e2-micro (the free-tier machine) cannot run this.** The stack is 11 containers totalling roughly 3.8 GB of memory limits; a 1 GB machine can't start it. e2-medium is the realistic minimum — Google's $300 trial credit covers it for roughly 11 months.
 
 ---
 
@@ -222,30 +253,7 @@ infra/       GCP Cloud Run setup (alternative to the single-VM deploy)
 
 ---
 
-## Deploying your own copy
-
-Two supported paths:
-
-| | Single VM | Cloud Run |
-|---|---|---|
-| Guide | **[docs/DEPLOY_VM.md](docs/DEPLOY_VM.md)** | **[infra/README.md](infra/README.md)** |
-| How | One Compute Engine VM running Docker Compose | 9 managed, autoscaling services |
-| Machine size | e2-medium (4 GB) — the full stack needs ~3.8 GB | Scales to zero when idle |
-| Database | Postgres in a container on the VM | Cloud SQL, private IP |
-| Best for | Simplest to reason about, course-project scale | Closer to a real production setup |
-
-**Single VM, short version** (after cloning onto the VM):
-
-```bash
-cp .env.production.example .env && vi .env   # set JWT_SECRET, DOCKERHUB_NAMESPACE, API key
-chmod +x deploy.sh && ./deploy.sh
-```
-
-`deploy.sh` installs Docker, adds swap space, pulls the pre-built images, runs database migrations (including the LangGraph checkpoint tables), seeds demo accounts, and starts everything. It refuses to start if `JWT_SECRET` is missing or still the development default — that check exists specifically so a real deployment can't accidentally go live unsecured.
-
-> **A note on the free tier:** e2-micro (1 GB RAM) genuinely cannot run this — the stack is 11 containers totalling roughly 3.8 GB of memory limits. e2-medium is the realistic minimum; Google's $300 trial credit covers roughly 11 months of it.
-
-### How secrets are handled
+## How secrets are handled
 
 No secret is ever committed to this repository. `.gitignore` blocks every `.env*` file and only allows the `*.example` templates back in. Real values live in exactly one of:
 

@@ -77,6 +77,32 @@ x-limit-portal: &limit-portal
         memory: 384M
 
 services:
+  # One-shot: applies Prisma migrations + creates the LangGraph checkpoint
+  # tables, then exits 0. Without this, `docker compose up` on a fresh clone
+  # starts every service against an EMPTY database — containers still report
+  # "healthy" (the healthcheck only hits /health, which doesn't touch Postgres)
+  # but every real request 500s on "relation \"users\" does not exist". This
+  # used to be defined only in docker-compose.prod.yml, so it silently never ran
+  # for the plain `docker compose up` tester/local path. Living here means every
+  # override file (dev, prod, micro) gets it automatically instead of having to
+  # remember to add it.
+  migrate:
+    image: ${DOCKERHUB_NAMESPACE}/nutriagent-migrate:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: docker/migrate.Dockerfile
+    pull_policy: missing
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://nutriagent:nutriagent@postgres:5432/nutriagent
+    command: ["migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   postgres:
     <<: *limit-postgres
     image: pgvector/pgvector:pg16
@@ -198,6 +224,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       vision-agent:
         condition: service_healthy
       nutrition-agent:
@@ -228,6 +256,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       orchestrator:
