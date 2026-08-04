@@ -1,0 +1,165 @@
+# Build all 9 images, push to Artifact Registry, run DB migrations, then roll out
+# the new revisions to Cloud Run.
+#
+# Runs on merge to main, or manually via the Actions tab.
+#
+# Required GitHub secrets:
+#   GCP_PROJECT_ID          e.g. nuitri-agent
+#   GCP_WIF_PROVIDER        Workload Identity Federation provider resource name
+#   GCP_SERVICE_ACCOUNT     deployer SA email (e.g. github-deployer@<project>.iam.gserviceaccount.com)
+#
+# Workload Identity Federation is used instead of a long-lived JSON key — see
+# infra/README.md for the one-time setup commands.
+
+name: GCP Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_migrations:
+        description: "Skip the database migration step"
+        type: boolean
+        default: false
+
+env:
+  REGION: me-west1
+  REPO: nutriagent
+
+permissions:
+  contents: read
+  id-token: write # required for Workload Identity Federation
+
+jobs:
+  build-push:
+    name: Build & push images
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: vision-agent
+            dockerfile: services/vision-agent/Dockerfile
+          - service: graphdb-agent
+            dockerfile: services/graphdb-agent/Dockerfile
+          - service: nutrition-agent
+            dockerfile: services/nutrition-agent/Dockerfile
+          - service: rag-agent
+            dockerfile: services/rag-agent/Dockerfile
+          - service: text2sql-agent
+            dockerfile: services/text2sql-agent/Dockerfile
+          - service: orchestrator
+            dockerfile: services/orchestrator/Dockerfile
+          - service: api-gateway
+            dockerfile: services/api-gateway/Dockerfile
+          - service: user-portal
+            dockerfile: apps/user-portal/Dockerfile
+          - service: admin-portal
+            dockerfile: apps/admin-portal/Dockerfile
+          # One-shot job image: migrations, checkpoint tables, seed, USDA import.
+          - service: migrate
+            dockerfile: docker/migrate.Dockerfile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Short git SHA
+        id: vars
+        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - uses: docker/setup-buildx-action@v3
+
+      # The portals bake NEXT_PUBLIC_API_URL at build time. It is not known until
+      # the gateway exists, so the browser uses same-origin paths and the portal's
+      # own middleware proxies to API_PROXY_TARGET (set at runtime by Terraform).
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/nutriagent-${{ matrix.service }}:latest
+            ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/nutriagent-${{ matrix.service }}:${{ steps.vars.outputs.short_sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,scope=${{ matrix.service }},mode=max
+
+  migrate:
+    name: Run database migrations
+    needs: build-push
+    if: ${{ !inputs.skip_migrations }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      # Executes the migration job defined in Terraform. It runs inside the VPC,
+      # so it can reach the private-IP Cloud SQL instance that CI cannot.
+      - name: Execute migration job
+        run: |
+          gcloud run jobs execute nutriagent-migrate \
+            --region "${{ env.REGION }}" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --wait
+
+  deploy:
+    name: Roll out to Cloud Run
+    needs: migrate
+    # Deploy even when migrations were skipped, but not if they actually failed.
+    if: ${{ always() && needs.build-push.result == 'success' && needs.migrate.result != 'failure' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # Order matters: agents first, then the gateway that calls them, then portals.
+      max-parallel: 3
+      matrix:
+        service:
+          - graphdb-agent
+          - nutrition-agent
+          - vision-agent
+          - rag-agent
+          - text2sql-agent
+          - orchestrator
+          - api-gateway
+          - user-portal
+          - admin-portal
+
+    steps:
+      - name: Short git SHA
+        id: vars
+        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      # Only the image changes — env vars, ingress, VPC and secrets stay as
+      # Terraform set them, so infrastructure config is never overwritten here.
+      - name: Deploy revision
+        run: |
+          gcloud run services update nutriagent-${{ matrix.service }} \
+            --region "${{ env.REGION }}" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --image "${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/nutriagent-${{ matrix.service }}:${{ steps.vars.outputs.short_sha }}"

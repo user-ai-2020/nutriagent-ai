@@ -2,6 +2,8 @@
 
 AI-powered nutrition tracking app with a multi-agent architecture: **LangGraph** orchestrates Vision, Nutrition, RAG, Text2SQL, and a clinical GraphDB agent.
 
+Repository: <https://github.com/user-ai-2020/nutriagent-ai>
+
 **For deep technical detail on every feature** (image storage, Text2SQL security, RAG pipeline, i18n, etc.), see **[docs/TASKS.md](docs/TASKS.md)**. Agent standing rules for Cursor / Antigravity: **[AGENTS.md](AGENTS.md)**. This README only covers what you need to get running and find your way around.
 
 ## Run It
@@ -195,13 +197,53 @@ AGENTS.md    standing instructions for AI coding agents (Cursor + Antigravity)
 
 ## Deployment (GCP)
 
+Two supported paths — pick one:
+
+| | Single VM | Cloud Run |
+|---|---|---|
+| Guide | **[docs/DEPLOY_VM.md](docs/DEPLOY_VM.md)** | **[infra/README.md](infra/README.md)** |
+| How | One Compute Engine VM, Docker Compose | 9 managed services, autoscaling |
+| Machine | e2-medium (4 GB) — the stack needs ~4.1 GB | scales to zero when idle |
+| Database | Postgres container on the VM | Cloud SQL, private IP |
+| Cost | ~$27/mo | ~$25–30/mo (Cloud SQL) + ~$35 (Redis) |
+| Best for | course demo, simplest to reason about | closer to production |
+
+**Single VM — the short version:**
+
 ```bash
-cd infra/terraform
-terraform init
-terraform apply -var="project_id=YOUR_GCP_PROJECT"
+# on the VM, after cloning
+cp .env.production.example .env && vi .env   # set JWT_SECRET, DOCKERHUB_NAMESPACE, keys
+chmod +x deploy.sh && ./deploy.sh
 ```
 
-Then deploy each service to Cloud Run (`gcloud run deploy <service> --source services/<service>`). See `infra/README.md` for details.
+`deploy.sh` installs Docker, adds swap, pulls images, runs migrations **and the
+LangGraph checkpoint tables**, seeds demo users, and starts everything.
+
+**Cloud Run — the short version:**
+
+```bash
+GITHUB_REPO=user-ai-2020/nutriagent-ai OPENROUTER_API_KEY=sk-or-v1-... ./infra/gcp-setup.sh
+git push origin main            # CI builds + pushes images
+./infra/deploy-services.sh
+./infra/run-migrations.sh
+```
+
+> **e2-micro (free tier) is not viable.** The stack is 11 containers totalling
+> ~3.8 GB of memory limits; 1 GB cannot start it. The $300 trial credit covers an
+> e2-medium for roughly 11 months.
+
+### Secrets
+
+No secret is ever committed. `.gitignore` denies every `.env*` variant and
+re-allows only `*.example` templates. Production values live in:
+
+- **VM:** `.env` on the machine, created from `.env.production.example`
+- **Cloud Run:** Secret Manager — the DB password and `JWT_SECRET` are generated
+  by `infra/gcp-setup.sh` and never printed or written to disk
+- **CI:** GitHub repository secrets, with Workload Identity Federation instead of
+  a long-lived service-account key
+
+`deploy.sh` refuses to start if `JWT_SECRET` is missing or still the dev default.
 
 ## Ongoing diagnostics
 

@@ -1,0 +1,76 @@
+# Production overrides for a single Compute Engine VM.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Differences from local development:
+#   - restart: unless-stopped        survive VM reboots
+#   - Postgres/Redis lose their host port bindings — reachable only on the
+#     internal Docker network, never from the internet
+#   - a one-shot `migrate` service applies schema + LangGraph checkpoint tables
+#     before the app services are considered ready
+#
+# Images are pulled from Docker Hub (pushed by .github/workflows/docker-publish.yml).
+# Building all 9 on a 4GB VM works but takes ~30 min and can OOM on the Next.js
+# portals — pulling is strongly preferred.
+
+# NOTE: `!reset` requires Docker Compose v2.24+ (Jan 2024). The docker-compose-plugin
+# that deploy.sh installs is far newer, so this is safe there. Check with
+# `docker compose version` if you are on an older host.
+#
+# Defence in depth: the GCP firewall rule only opens 3000/3007/3008, so even
+# without these resets the database would not be reachable from the internet.
+
+services:
+  postgres:
+    restart: unless-stopped
+    # Drop the host port binding — the database must not be exposed. Reach it with:
+    #   docker compose exec postgres psql -U nutriagent
+    ports: !reset []
+
+  redis:
+    restart: unless-stopped
+    ports: !reset []
+
+  # One-shot: schema migrations + LangGraph checkpoint tables. Exits 0 when done.
+  # Without the checkpoint tables the vision interrupt/resume path fails at runtime.
+  migrate:
+    image: ${DOCKERHUB_NAMESPACE}/nutriagent-migrate:${IMAGE_TAG:-latest}
+    pull_policy: missing
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://nutriagent:nutriagent@postgres:5432/nutriagent
+    command: ["migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  vision-agent:
+    restart: unless-stopped
+  graphdb-agent:
+    restart: unless-stopped
+  nutrition-agent:
+    restart: unless-stopped
+  rag-agent:
+    restart: unless-stopped
+  text2sql-agent:
+    restart: unless-stopped
+
+  orchestrator:
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  api-gateway:
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  user-portal:
+    restart: unless-stopped
+  admin-portal:
+    restart: unless-stopped

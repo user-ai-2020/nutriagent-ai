@@ -30,7 +30,11 @@ export function readLanguageCookieClient(): ResponseLanguage | null {
 /** Client-side: persist preference for SSR on next full navigation / hard refresh */
 export function writeLanguageCookieClient(lang: ResponseLanguage): void {
   if (typeof document === "undefined") return;
-  document.cookie = `${PREFERRED_LANGUAGE_COOKIE}=${lang}; path=/; max-age=${LANGUAGE_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
+  // `Secure` over HTTPS (Cloud Run, any real deployment) but not on plain-HTTP
+  // localhost, where browsers reject Secure cookies and the SSR direction would
+  // silently stop working in local dev.
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${PREFERRED_LANGUAGE_COOKIE}=${lang}; path=/; max-age=${LANGUAGE_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
 }
 
 export function syncDocumentDirection(lang: ResponseLanguage): void {

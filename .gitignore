@@ -5,9 +5,26 @@ dist/
 .expo/
 .turbo/
 *.log
+# Secrets — deny every .env variant, then re-allow the committed templates.
+# The previous list (.env, .env.local, .env.*.local) missed names like
+# .env.production and .env.prod, which would have been committed.
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.*.example
+!.env.tester.example
+# Committed on purpose — throwaway unit-test fixtures, no real secrets.
+!services/orchestrator/.env.test
+
+# Marker written by deploy.sh after the first successful seed
+.seeded
+
+# Scratch files left by interrupted pnpm/docker runs
+_tmp_*
+
+# Extracted USDA CSVs (~32MB) — derivable from usda.zip, so not worth versioning.
+# Already tracked? Untrack once with:  git rm -r --cached usda_extracted
+usda_extracted/
 coverage/
 .DS_Store
 *.tsbuildinfo
