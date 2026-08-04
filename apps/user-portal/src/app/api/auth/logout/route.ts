@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { shouldUseSecureCookie } from "@/lib/cookieSecurity";
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   const res = NextResponse.json({ ok: true });
   res.cookies.set("nutriagent_token", "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureCookie(req),
     sameSite: "lax",
     path: "/",
     maxAge: 0,
