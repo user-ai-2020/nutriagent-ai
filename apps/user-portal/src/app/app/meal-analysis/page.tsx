@@ -86,7 +86,7 @@ export default function MealAnalysisPage() {
     : null;
   const name =
     localizeMealTitle(
-      meal.items.map((i) => i.foodType),
+      meal.items.map((i: Item) => i.foodType),
       lang
     ) || t("mealAnalysis.loggedMeal");
   const titleLong = name.length > 56 || meal.items.length > 2;

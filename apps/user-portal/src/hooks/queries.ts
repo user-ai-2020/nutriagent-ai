@@ -55,7 +55,26 @@ export function useMeals(params: string) {
 export function useMeal(id: number | null) {
   return useQuery({
     queryKey: queryKeys.meal(id),
-    queryFn: () => api<any>(`/api/meals/${id}`),
+    queryFn: () =>
+      api<{
+        mealId: number;
+        mealDatetime: string;
+        mealType: string;
+        imageUrl?: string | null;
+        items: Array<{
+          itemId: number;
+          foodType: string;
+          estimatedQuantity: string;
+          visionConfidence?: number | null;
+          nutritionValues?: {
+            calories: number;
+            protein: number;
+            fat: number;
+            carbs: number;
+            sugar?: number;
+          } | null;
+        }>;
+      }>(`/api/meals/${id}`),
     enabled: id !== null && id > 0,
   });
 }
