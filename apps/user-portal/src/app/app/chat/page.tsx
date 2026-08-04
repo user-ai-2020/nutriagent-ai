@@ -88,7 +88,9 @@ function ragReplyBody(text: string): string {
   return cut < text.length ? text.slice(0, cut).trimEnd() : text;
 }
 
-import { CitationSource } from "@nutriagent/shared";
+// `import type` so this is erased at compile time — a value import of the shared
+// barrel would drag sharp / @google-cloud/storage into the browser bundle.
+import type { CitationSource } from "@nutriagent/shared/types";
 
 /**
  * Always returns a string label — never an object. A citation arriving as

@@ -58,6 +58,12 @@ model UserProfile {
   weight             Float?
   height             Float?
   age                Int?
+  /// male | female — required by the Mifflin-St Jeor BMR equation.
+  sex                String?
+  /// sedentary | light | moderate | active | very_active (FAO/WHO activity levels)
+  activityLevel      String?  @map("activity_level")
+  /// lose_fat | maintain | build_muscle — drives calorie delta and protein target.
+  fitnessGoal        String?  @map("fitness_goal")
   dailyStepsGoal     Int      @default(8000) @map("daily_steps_goal")
   todaySteps         Int      @default(0) @map("today_steps")
   preferredLanguage  String?  @map("preferred_language")

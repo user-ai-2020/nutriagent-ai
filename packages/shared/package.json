@@ -21,6 +21,14 @@
       "types": "./dist/citation-sources.d.ts",
       "default": "./dist/citation-sources.js"
     },
+    "./nutrition-targets": {
+      "types": "./dist/nutrition-targets.d.ts",
+      "default": "./dist/nutrition-targets.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
+    },
     "./locales": {
       "types": "./dist/locales/index.d.ts",
       "default": "./dist/locales/index.js"

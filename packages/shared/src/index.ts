@@ -1,3 +1,15 @@
+/**
+ * Server-side barrel. It re-exports Node-only modules (`image-processing` → sharp,
+ * `storage/imageStorage` → @google-cloud/storage), so importing this from a client
+ * component makes webpack try to bundle fs/net/child_process and the build fails.
+ *
+ * Browser/client code must use the subpath exports declared in package.json:
+ *   @nutriagent/shared/types             (types only)
+ *   @nutriagent/shared/nutrition-targets (BMI / BMR / TDEE calculations)
+ *   @nutriagent/shared/citation-sources
+ *   @nutriagent/shared/authCookie
+ *   @nutriagent/shared/locales
+ */
 export * from "./types";
 export * from "./vision-poc";
 export * from "./image-mime";
@@ -19,5 +31,6 @@ export * from "./citation-sources";
 export * from "./locales";
 export * from "./validateEnv";
 export * from "./listen";
+export * from "./nutrition-targets";
 export { createId } from "@paralleldrive/cuid2";
 

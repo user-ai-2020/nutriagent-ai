@@ -11,7 +11,8 @@ export interface MealAnalysis {
   totalNutrition: Nutrition;
 }
 
-import { CitationSource } from "@nutriagent/shared";
+// Type-only + subpath: keeps the server-only barrel out of the client bundle.
+import type { CitationSource } from "@nutriagent/shared/types";
 import { NutritionHistoryData } from "@/components/NutritionHistoryChart";
 
 export type Msg =

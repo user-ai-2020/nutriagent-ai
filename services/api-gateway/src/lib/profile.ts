@@ -20,6 +20,11 @@ export function toUserProfileData(profile: UserProfile | null | undefined): User
     weight: profile.weight ?? undefined,
     height: profile.height ?? undefined,
     age: profile.age ?? undefined,
+    // Passed to the agents so advice matches the training goal — a cut and a lean
+    // bulk need different portion guidance for the same person.
+    sex: (profile.sex as UserProfileData["sex"]) ?? undefined,
+    activityLevel: (profile.activityLevel as UserProfileData["activityLevel"]) ?? undefined,
+    fitnessGoal: (profile.fitnessGoal as UserProfileData["fitnessGoal"]) ?? undefined,
     preferredLanguage,
   };
 }

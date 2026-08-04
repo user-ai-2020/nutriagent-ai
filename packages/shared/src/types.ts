@@ -28,6 +28,12 @@ export interface UserProfileData {
   weight?: number;
   height?: number;
   age?: number;
+  /** Required by the Mifflin-St Jeor BMR equation. */
+  sex?: "male" | "female";
+  /** FAO/WHO physical activity level, used as the TDEE multiplier. */
+  activityLevel?: "sedentary" | "light" | "moderate" | "active" | "very_active";
+  /** Drives the calorie delta and protein target. */
+  fitnessGoal?: "lose_fat" | "maintain" | "build_muscle";
   /** Override auto language detection: `he` | `en` */
   preferredLanguage?: "he" | "en" | "ru";
 }

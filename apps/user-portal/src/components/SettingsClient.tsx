@@ -8,6 +8,10 @@ import { useAuth } from "@/lib/auth";
 import { useLanguage } from "@/lib/language";
 import { useViewportPreview } from "@/lib/viewportPreview";
 import { useProfile, useUpdateProfile } from "@/hooks/queries";
+// Subpath import, NOT the "@nutriagent/shared" barrel: the barrel re-exports
+// sharp and @google-cloud/storage, which webpack then tries to bundle for the
+// browser and the build dies on fs/net/child_process.
+import { calculateBodyMetrics, hasCompleteBodyMetrics } from "@nutriagent/shared/nutrition-targets";
 import {
   applyRestrictions,
   DIET_TYPES,
@@ -16,6 +20,22 @@ import {
   RestrictionId,
   selectedRestrictions,
 } from "@/lib/profile";
+
+function MetricRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13 }}>
+      <span style={{ opacity: 0.7 }}>{label}</span>
+      <span style={{ fontWeight: strong ? 700 : 500 }}>{value}</span>
+    </div>
+  );
+}
+
+const BMI_CATEGORY_KEY: Record<string, string> = {
+  underweight: "settings.bmiUnderweight",
+  normal: "settings.bmiNormal",
+  overweight: "settings.bmiOverweight",
+  obese: "settings.bmiObese",
+};
 
 export function SettingsClient() {
   const { t } = useTranslation();
@@ -53,6 +73,19 @@ export function SettingsClient() {
   }
 
   if (!profile) return <div style={{ padding: "var(--space-8)", opacity: 0.6 }}>{t("common.loading")}</div>;
+
+  // Recomputed as the user edits, so the targets update live before saving.
+  const metrics = hasCompleteBodyMetrics(profile)
+    ? calculateBodyMetrics({
+        weightKg: profile.weight!,
+        heightCm: profile.height!,
+        age: profile.age!,
+        sex: profile.sex!,
+        activityLevel: profile.activityLevel ?? "moderate",
+        goal: profile.fitnessGoal ?? "maintain",
+      })
+    : null;
+  const bmiCategoryKey = metrics ? BMI_CATEGORY_KEY[metrics.bmiCategory] : "settings.bmiNormal";
 
   return (
     <div className="na-screen">
@@ -117,6 +150,191 @@ export function SettingsClient() {
             </button>
           ))}
         </div>
+
+        <h3 style={{ fontSize: 15, marginBottom: "var(--space-2)" }}>{t("settings.bodyTitle")}</h3>
+        <p className="note" style={{ margin: "0 0 var(--space-3)" }}>{t("settings.bodyHint")}</p>
+
+        <div className="field">
+          <label htmlFor="st-weight">{t("settings.weight")}</label>
+          <input
+            className="input"
+            id="st-weight"
+            type="number"
+            min={20}
+            max={400}
+            value={profile.weight ?? ""}
+            onChange={(e) =>
+              setProfile({ ...profile, weight: Number(e.target.value) || undefined })
+            }
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor="st-height">{t("settings.height")}</label>
+          <input
+            className="input"
+            id="st-height"
+            type="number"
+            min={80}
+            max={250}
+            value={profile.height ?? ""}
+            onChange={(e) =>
+              setProfile({ ...profile, height: Number(e.target.value) || undefined })
+            }
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor="st-age">{t("settings.age")}</label>
+          <input
+            className="input"
+            id="st-age"
+            type="number"
+            min={10}
+            max={120}
+            value={profile.age ?? ""}
+            onChange={(e) => setProfile({ ...profile, age: Number(e.target.value) || undefined })}
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor="st-sex">{t("settings.sex")}</label>
+          <select
+            className="input"
+            id="st-sex"
+            value={profile.sex ?? ""}
+            onChange={(e) =>
+              setProfile({ ...profile, sex: (e.target.value || undefined) as Profile["sex"] })
+            }
+          >
+            <option value="">—</option>
+            <option value="female">{t("settings.sexFemale")}</option>
+            <option value="male">{t("settings.sexMale")}</option>
+          </select>
+        </div>
+
+        <div className="field">
+          <label htmlFor="st-activity">{t("settings.activityLevel")}</label>
+          <select
+            className="input"
+            id="st-activity"
+            value={profile.activityLevel ?? "moderate"}
+            onChange={(e) =>
+              setProfile({
+                ...profile,
+                activityLevel: e.target.value as Profile["activityLevel"],
+              })
+            }
+          >
+            <option value="sedentary">{t("settings.activitySedentary")}</option>
+            <option value="light">{t("settings.activityLight")}</option>
+            <option value="moderate">{t("settings.activityModerate")}</option>
+            <option value="active">{t("settings.activityActive")}</option>
+            <option value="very_active">{t("settings.activityVeryActive")}</option>
+          </select>
+        </div>
+
+        <div className="field">
+          <label htmlFor="st-goal">{t("settings.fitnessGoal")}</label>
+          <select
+            className="input"
+            id="st-goal"
+            value={profile.fitnessGoal ?? "maintain"}
+            onChange={(e) =>
+              setProfile({ ...profile, fitnessGoal: e.target.value as Profile["fitnessGoal"] })
+            }
+          >
+            <option value="lose_fat">{t("settings.goalLoseFat")}</option>
+            <option value="maintain">{t("settings.goalMaintain")}</option>
+            <option value="build_muscle">{t("settings.goalBuildMuscle")}</option>
+          </select>
+        </div>
+
+        {metrics ? (
+          <div
+            className="card"
+            style={{ padding: "var(--space-3)", gap: 6, margin: "0 0 var(--space-4)" }}
+          >
+            {/* The end result, stated plainly — derived from the actual calorie
+                delta, so a deficit clamped to the safe floor reads as maintenance
+                rather than promising weight loss it no longer produces. */}
+            <div
+              style={{
+                paddingBottom: 8,
+                marginBottom: 4,
+                borderBottom: "1px solid var(--color-divider)",
+              }}
+            >
+              <div style={{ fontSize: 11.5, opacity: 0.6 }}>{t("settings.outcomeTitle")}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-accent)" }}>
+                {metrics.weightDirection === "lose"
+                  ? t("settings.outcomeLose", { kg: Math.abs(metrics.weeklyWeightChangeKg) })
+                  : metrics.weightDirection === "gain"
+                    ? t("settings.outcomeGain", { kg: Math.abs(metrics.weeklyWeightChangeKg) })
+                    : t("settings.outcomeMaintain")}
+              </div>
+            </div>
+
+            <MetricRow label={t("settings.bmi")} value={`${metrics.bmi} · ${t(bmiCategoryKey)}`} />
+            <MetricRow label={t("settings.bmr")} value={`${metrics.bmr} kcal`} />
+            <MetricRow label={t("settings.tdee")} value={`${metrics.tdee} kcal`} />
+            <MetricRow
+              label={t("settings.recommendedCalories")}
+              value={`${metrics.targetCalories} kcal`}
+              strong
+            />
+            <MetricRow
+              label={t("settings.recommendedProtein")}
+              value={`${metrics.targetProteinGrams} g`}
+              strong
+            />
+
+            <p className="note" style={{ margin: "6px 0 0" }}>
+              {metrics.calorieDelta > 0
+                ? t("settings.eatMore", { kcal: Math.abs(metrics.calorieDelta) })
+                : metrics.calorieDelta < 0
+                  ? t("settings.eatLess", { kcal: Math.abs(metrics.calorieDelta) })
+                  : t("settings.eatSame")}
+            </p>
+
+            {metrics.clampedToSafeMinimum && (
+              <p className="note" style={{ margin: "4px 0 0", color: "var(--color-warning, #f2a33c)" }}>
+                {/* If the floor pushed the target at or above TDEE, a "lose fat" goal
+                    can't deliver loss at all — say that outright instead of leaving a
+                    confusing "gain weight" outcome next to a cutting goal. */}
+                {metrics.targetCalories >= metrics.tdee
+                  ? t("settings.safeMinimumAboveBurn")
+                  : t("settings.safeMinimumNote")}
+              </p>
+            )}
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ marginTop: 8, alignSelf: "flex-start", fontSize: 13 }}
+              onClick={() =>
+                setProfile({
+                  ...profile,
+                  dietGoals: {
+                    ...profile.dietGoals,
+                    dailyCalories: metrics.targetCalories,
+                    proteinGrams: metrics.targetProteinGrams,
+                  },
+                })
+              }
+            >
+              {t("settings.applyTargets")}
+            </button>
+
+            <p className="note" style={{ margin: "8px 0 0", fontSize: 11, opacity: 0.7 }}>
+              {t("settings.methodNote")}
+            </p>
+          </div>
+        ) : (
+          <p className="note" style={{ margin: "0 0 var(--space-4)" }}>
+            {t("settings.targetsIncomplete")}
+          </p>
+        )}
 
         <h3 style={{ fontSize: 15, marginBottom: "var(--space-2)" }}>{t("settings.dietGoals")}</h3>
         <div className="field">

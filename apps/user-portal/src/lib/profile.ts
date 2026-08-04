@@ -5,6 +5,13 @@ export interface Profile {
   dietType?: string;
   dailyStepsGoal?: number;
   todaySteps?: number;
+  /** Body-composition inputs behind BMI / BMR / TDEE and the calorie target. */
+  weight?: number;
+  height?: number;
+  age?: number;
+  sex?: "male" | "female";
+  activityLevel?: "sedentary" | "light" | "moderate" | "active" | "very_active";
+  fitnessGoal?: "lose_fat" | "maintain" | "build_muscle";
 }
 
 export const RESTRICTIONS = [

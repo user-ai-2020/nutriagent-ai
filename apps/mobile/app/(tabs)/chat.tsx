@@ -20,7 +20,7 @@ import { CameraIcon, GalleryIcon, SendIcon } from "@/components/Icons";
 import { FlowerMacro, NutritionFlower } from "@/components/NutritionFlower";
 import { Card, IconButton, Kicker, Tag } from "@/components/ui";
 import { colors, fonts, radius, serif, space, textMuted } from "@/theme/tokens";
-import type { CitationSource } from "@nutriagent/shared";
+import type { CitationSource } from "@nutriagent/shared/types";
 
 /**
  * Citations arrive as either a plain string or a { title, url } object (web/RAG

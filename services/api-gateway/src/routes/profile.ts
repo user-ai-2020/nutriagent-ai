@@ -23,6 +23,10 @@ const profileSchema = z.object({
   weight: z.number().optional(),
   height: z.number().optional(),
   age: z.number().int().optional(),
+  // Inputs behind BMI / BMR (Mifflin-St Jeor) / TDEE and the calorie + protein target.
+  sex: z.enum(["male", "female"]).optional(),
+  activityLevel: z.enum(["sedentary", "light", "moderate", "active", "very_active"]).optional(),
+  fitnessGoal: z.enum(["lose_fat", "maintain", "build_muscle"]).optional(),
   dailyStepsGoal: z.number().int().optional(),
   todaySteps: z.number().int().optional(),
   preferredLanguage: z.enum(["en", "he", "ru"]).optional(),
