@@ -7,7 +7,7 @@
     "prebuild": "node --import tsx ../../packages/shared/src/locales/lintUsageCli.ts",
     "build": "next build",
     "start": "next start -p 3008",
-    "test": "node --import tsx --test src/**/*.test.ts src/**/*.test.tsx"
+    "test": "node --import tsx --test \"src/**/*.test.ts\" \"src/**/*.test.tsx\""
   },
   "dependencies": {
     "@nutriagent/shared": "workspace:*",

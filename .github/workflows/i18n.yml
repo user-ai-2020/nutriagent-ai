@@ -5,6 +5,12 @@ on:
     branches: [main, master]
   pull_request:
 
+# Only the newest run per branch matters — cancel superseded ones instead of
+# letting them queue and burn Actions minutes (Docker Publish is a 9-job matrix).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   locale-keys:
     runs-on: ubuntu-latest
@@ -15,7 +21,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 22, not 20: the test scripts pass quoted globs like "src/**/*.test.ts"
+          # so the shell leaves them alone (sh has no globstar — `**` collapses to a
+          # single level and silently skips top-level test files). Node's own glob
+          # support in --test arrived in v21.
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies

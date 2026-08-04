@@ -42,7 +42,7 @@
     "build": "tsc && node --import tsx src/locales/lintUsageCli.ts",
     "dev": "tsc --watch",
     "lint:i18n": "node --import tsx src/locales/lintUsageCli.ts",
-    "test": "node --import tsx --test src/**/*.test.ts"
+    "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@google-cloud/storage": "^7.15.2",

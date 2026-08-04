@@ -10,6 +10,12 @@ on:
     branches:
       - main
 
+# Only the newest run per branch matters — cancel superseded ones instead of
+# letting them queue and burn Actions minutes (Docker Publish is a 9-job matrix).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-push:
     runs-on: ubuntu-latest

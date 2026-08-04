@@ -9,7 +9,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint:i18n": "node --import tsx ../../packages/shared/src/locales/lintUsageCli.ts",
-    "test": "node --import tsx --test lib/**/*.test.ts"
+    "test": "node --import tsx --test \"lib/**/*.test.ts\""
   },
   "dependencies": {
     "@babel/runtime": "^7.26.0",

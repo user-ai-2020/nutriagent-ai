@@ -7,7 +7,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "setup:checkpointer": "tsx scripts/setup_checkpointer.ts",
-    "test": "node --import tsx --test src/**/*.test.ts"
+    "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@langchain/core": "^1.2.4",
