@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "description": "NutriAgent AI - Nutrition tracking with multi-agent AI",
+  "//packageManager": "Required by pnpm/action-setup in CI — without it the action fails with 'No pnpm version is specified'. Matches the pnpm pinned in the Dockerfiles (corepack prepare pnpm@9.15.4).",
+  "packageManager": "pnpm@9.15.4",
   "scripts": {
     "dev": "pnpm --filter @nutriagent/shared build && pnpm --filter @nutriagent/db build && pnpm --parallel --filter \"./services/*\" --filter \"./apps/user-portal\" --filter \"./apps/admin-portal\" run dev",
     "dev:packages": "pnpm --parallel --filter @nutriagent/shared --filter @nutriagent/db run dev",
