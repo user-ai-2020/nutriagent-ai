@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { CITATION_SOURCE_I18N_KEY, normalizeCitationSource } from "@nutriagent/shared/citation-sources";
+import { resolveCitationDisplay } from "@nutriagent/shared/citation-sources";
 import { localizeFoodDisplayName } from "@nutriagent/shared/foodDisplayName";
 import { api, apiBaseUrl, apiChat, CHAT_API_TIMEOUT_MS } from "@/lib/api";
 import { Profile } from "@/lib/profile";
@@ -15,12 +16,46 @@ import { useProfile, useInvalidateMealData } from "@/hooks/queries";
 import { useLanguage } from "@/lib/language";
 import { resizeImage } from "@/lib/imageUtils";
 import { PlusIcon } from "@/components/icons";
+import { mealTypeLabel } from "@/lib/mealType";
 
 import { Nutrition, MealAnalysis, Msg } from "@/types/chatTypes";
 
 const GOAL_FAT = 70;
 const GOAL_CARBS = 250;
 const GOAL_SUGAR = 50;
+
+type MealTypeSlot = "breakfast" | "lunch" | "dinner" | "snack";
+
+const MEAL_TYPE_DEFAULT_HOUR: Record<MealTypeSlot, string> = {
+  breakfast: "08:00",
+  lunch: "13:00",
+  dinner: "19:00",
+  snack: "15:30",
+};
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function localDateFromDate(d: Date): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function localTimeFromDate(d: Date): string {
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function isMealTypeSlot(v: string | null | undefined): v is MealTypeSlot {
+  return v === "breakfast" || v === "lunch" || v === "dinner" || v === "snack";
+}
+
+/** Build ISO string from local date+time picks for the backend. */
+function mealDatetimeIso(dateYmd: string, timeHm: string): string {
+  const [y, m, d] = dateYmd.split("-").map(Number);
+  const [hh, mm] = timeHm.split(":").map(Number);
+  if (!y || !m || !d || Number.isNaN(hh) || Number.isNaN(mm)) return new Date().toISOString();
+  return new Date(y, m - 1, d, hh, mm, 0, 0).toISOString();
+}
 
 function mealReplyWithoutDescription(reply: string, mealDescription?: string): string {
   if (!mealDescription) return reply;
@@ -97,26 +132,14 @@ function ragReplyBody(text: string): string {
 import type { CitationSource } from "@nutriagent/shared/types";
 
 /**
- * Always returns a string label — never an object. A citation arriving as
- * { title, url } (web/RAG sources) rendered directly as a React child throws
- * "Objects are not valid as a React child", which crashes the whole chat page,
- * so every branch here is coerced to a primitive defensively.
+ * Localized source pill + optional clickable URL.
+ * Objects `{ title, url }` and free-text/Hebrew titles are mapped to the UI language.
  */
 function formatSourceLabel(
   src: CitationSource,
   t: (key: string) => string
 ): { label: string; url?: string } {
-  if (src && typeof src === "object") {
-    const { title, url } = src as { title?: unknown; url?: unknown };
-    const safeUrl = typeof url === "string" && url ? url : undefined;
-    const safeTitle = typeof title === "string" && title ? title : safeUrl;
-    return { label: safeTitle ?? "", url: safeUrl };
-  }
-  if (typeof src !== "string") return { label: String(src ?? "") };
-
-  const id = normalizeCitationSource(src);
-  const i18nKey = CITATION_SOURCE_I18N_KEY[id];
-  return { label: i18nKey ? t(`chat.sourceLabels.${i18nKey}`) : src };
+  return resolveCitationDisplay(src, t);
 }
 
 interface ChatSessionSummary {
@@ -199,7 +222,19 @@ function SourceTag({ src, t }: { src: CitationSource; t: any }) {
   if (!label) return null;
   if (url) {
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="tag tag-outline" style={{ textDecoration: "none" }}>
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="tag tag-outline"
+        title={url}
+        style={{
+          textDecoration: "underline",
+          textUnderlineOffset: 2,
+          cursor: "pointer",
+          color: "var(--color-accent-700, var(--color-accent))",
+        }}
+      >
         {label}
       </a>
     );
@@ -210,6 +245,7 @@ function SourceTag({ src, t }: { src: CitationSource; t: any }) {
 export default function ChatPage() {
   const { t } = useTranslation();
   const { preferredLanguage } = useLanguage();
+  const searchParams = useSearchParams();
   const [messages, setMessages] = useState<Msg[]>([]);
   // Messages already translated into a given language, so a second switch back and
   // forth doesn't re-request them.
@@ -231,6 +267,27 @@ export default function ChatPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  const now = new Date();
+  const [mealDate, setMealDate] = useState(localDateFromDate(now));
+  const [mealTime, setMealTime] = useState(localTimeFromDate(now));
+  const [mealType, setMealType] = useState<MealTypeSlot | "">("");
+  const [scheduleTouched, setScheduleTouched] = useState(false);
+
+  // Dashboard deep-link: /app/chat?mealType=lunch&date=2026-08-03
+  useEffect(() => {
+    const type = searchParams.get("mealType");
+    const date = searchParams.get("date");
+    if (isMealTypeSlot(type)) {
+      setMealType(type);
+      setMealTime(MEAL_TYPE_DEFAULT_HOUR[type]);
+      setScheduleTouched(true);
+    }
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      setMealDate(date);
+      setScheduleTouched(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!file) {
@@ -413,6 +470,9 @@ export default function ChatPage() {
         form.append("message", message);
         form.append("image", resizedBlob, file.name);
         if (sessionId) form.append("sessionId", String(sessionId));
+        // Always pass the composer schedule when a photo is logged so another day/slot lands correctly.
+        form.append("mealDatetime", mealDatetimeIso(mealDate, mealTime));
+        if (mealType) form.append("mealType", mealType);
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), CHAT_API_TIMEOUT_MS);
         let res: Response;
@@ -431,6 +491,11 @@ export default function ChatPage() {
       } else {
         const payload: Record<string, any> = { message };
         if (sessionId) payload.sessionId = sessionId;
+        // Text-only path still accepts schedule when the user set an explicit slot (dashboard deep-link).
+        if (scheduleTouched || mealType) {
+          payload.mealDatetime = mealDatetimeIso(mealDate, mealTime);
+          if (mealType) payload.mealType = mealType;
+        }
         data = await apiChat("/api/chat/message", { method: "POST", body: JSON.stringify(payload) });
       }
 
@@ -988,6 +1053,95 @@ export default function ChatPage() {
             </button>
           ))}
         </div>
+        <div
+          className="na-chat-meal-schedule"
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            alignItems: "end",
+          }}
+        >
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: muted(), minWidth: 120, flex: "1 1 110px" }}>
+            {t("chat.mealDate")}
+            <input
+              className="input"
+              type="date"
+              value={mealDate}
+              max={localDateFromDate(new Date())}
+              onChange={(e) => {
+                setMealDate(e.target.value);
+                setScheduleTouched(true);
+              }}
+              style={{ fontSize: 13, padding: "8px 10px" }}
+            />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: muted(), minWidth: 100, flex: "1 1 90px" }}>
+            {t("chat.mealTime")}
+            <input
+              className="input"
+              type="time"
+              value={mealTime}
+              onChange={(e) => {
+                setMealTime(e.target.value);
+                setScheduleTouched(true);
+              }}
+              style={{ fontSize: 13, padding: "8px 10px" }}
+            />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: muted(), minWidth: 130, flex: "1 1 120px" }}>
+            {t("chat.mealType")}
+            <select
+              className="input"
+              value={mealType}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (isMealTypeSlot(next)) {
+                  setMealType(next);
+                  if (!scheduleTouched) setMealTime(MEAL_TYPE_DEFAULT_HOUR[next]);
+                  else if (mealType === "" || mealTime === localTimeFromDate(new Date())) {
+                    setMealTime(MEAL_TYPE_DEFAULT_HOUR[next]);
+                  }
+                } else {
+                  setMealType("");
+                }
+                setScheduleTouched(true);
+              }}
+              style={{ fontSize: 13, padding: "8px 10px" }}
+            >
+              <option value="">{t("chat.mealTypeAuto")}</option>
+              {(["breakfast", "lunch", "dinner", "snack"] as const).map((slot) => (
+                <option key={slot} value={slot}>
+                  {mealTypeLabel(slot, t)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ fontSize: 12, whiteSpace: "nowrap", height: 38 }}
+            onClick={() => {
+              const n = new Date();
+              setMealDate(localDateFromDate(n));
+              setMealTime(localTimeFromDate(n));
+              setMealType("");
+              setScheduleTouched(false);
+            }}
+            disabled={busy}
+          >
+            {t("chat.mealScheduleNow")}
+          </button>
+        </div>
+        {(scheduleTouched || mealType) && (
+          <div style={{ fontSize: 12, color: muted() }}>
+            {t("chat.mealScheduleHint", {
+              date: mealDate,
+              time: mealTime,
+              meal: mealType ? mealTypeLabel(mealType, t) : t("chat.mealTypeAuto"),
+            })}
+          </div>
+        )}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input
             ref={fileRef}

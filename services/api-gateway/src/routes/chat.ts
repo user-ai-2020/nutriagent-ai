@@ -29,10 +29,15 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+const mealTypeSchema = z.enum(["breakfast", "lunch", "dinner", "snack"]);
+
 const messageSchema = z.object({
   message: z.string().min(1),
   mealId: z.number().optional(),
   sessionId: z.number().optional(),
+  /** ISO 8601 or browser local "YYYY-MM-DDTHH:mm" — when logging a meal photo for another day/time. */
+  mealDatetime: z.string().min(1).optional(),
+  mealType: mealTypeSchema.optional(),
 });
 
 /**
@@ -225,6 +230,14 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
       message: req.body.message,
       mealId: req.body.mealId ? Number(req.body.mealId) : undefined,
       sessionId: req.body.sessionId ? Number(req.body.sessionId) : undefined,
+      mealDatetime:
+        typeof req.body.mealDatetime === "string" && req.body.mealDatetime.trim()
+          ? req.body.mealDatetime.trim()
+          : undefined,
+      mealType:
+        typeof req.body.mealType === "string" && req.body.mealType.trim()
+          ? req.body.mealType.trim().toLowerCase()
+          : undefined,
     });
 
     const profile = await prisma.userProfile.findUnique({
@@ -263,7 +276,12 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
         height: processed.height,
         fileSizeBytes: processed.fileSizeBytes,
         contentHash: processed.contentHash,
-        capturedAt: new Date().toISOString(),
+        capturedAt: body.mealDatetime
+          ? (() => {
+              const d = new Date(body.mealDatetime!);
+              return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+            })()
+          : new Date().toISOString(),
         displayUrl: uploaded.url,
       };
 
@@ -311,6 +329,8 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
       mealImage,
       imageUrl: mealImage?.displayUrl,
       sessionId: finalSessionId,
+      mealDatetime: body.mealDatetime,
+      mealType: body.mealType,
     });
 
     if (result.intent === "clarify_vision") {

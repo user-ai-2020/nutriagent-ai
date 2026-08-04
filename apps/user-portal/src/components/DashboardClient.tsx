@@ -12,6 +12,7 @@ import { WeeklyCalorieTrend } from "@/components/charts/WeeklyCalorieTrend";
 import { MacroBreakdownChart } from "@/components/charts/MacroBreakdownChart";
 import { StepsVsCaloriesChart } from "@/components/charts/StepsVsCaloriesChart";
 import { StepsCard } from "@/components/StepsCard";
+import { pickDashboardAdvice } from "@/lib/dashboardAdvice";
 
 
 interface Dash {
@@ -20,8 +21,8 @@ interface Dash {
   mealTypeBreakdown: { breakfast: number; lunch: number; dinner: number; snack: number };
   steps: { today: number; goal: number };
   totals: { calories: number; protein: number; fat: number; carbs: number };
-  todayTotals: { calories: number; protein: number; fat: number; carbs: number };
-  goals: { dailyCalories?: number; proteinGrams?: number };
+  todayTotals: { calories: number; protein: number; fat: number; carbs: number; sugar?: number };
+  goals: { dailyCalories?: number; proteinGrams?: number; carbsGrams?: number; fatGrams?: number };
   mealCount: number;
 }
 
@@ -89,7 +90,7 @@ function StatColumn({
   className,
 }: {
   align: "right" | "left";
-  rows: Array<{ label: string; value: string }>;
+  rows: Array<{ label: string; value: string; href?: string; hint?: string }>;
   className?: string;
 }) {
   return (
@@ -97,12 +98,34 @@ function StatColumn({
       className={className}
       style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", textAlign: align }}
     >
-      {rows.map((row) => (
-        <div key={row.label}>
-          <div style={{ fontSize: 11, letterSpacing: "0.04em", color: muted(60) }}>{row.label}</div>
-          <div style={serif(22, { color: "var(--color-accent)" })}>{row.value}</div>
-        </div>
-      ))}
+      {rows.map((row) => {
+        const body = (
+          <>
+            <div style={{ fontSize: 11, letterSpacing: "0.04em", color: muted(60) }}>{row.label}</div>
+            <div style={serif(22, { color: "var(--color-accent)" })}>{row.value}</div>
+          </>
+        );
+        if (row.href) {
+          return (
+            <Link
+              key={row.label}
+              href={row.href}
+              title={row.hint}
+              style={{
+                display: "block",
+                textDecoration: "none",
+                color: "inherit",
+                borderRadius: "var(--radius-sm)",
+                margin: "0 -4px",
+                padding: "2px 4px",
+              }}
+            >
+              {body}
+            </Link>
+          );
+        }
+        return <div key={row.label}>{body}</div>;
+      })}
     </div>
   );
 }
@@ -182,30 +205,36 @@ export function DashboardClient() {
   const percent = data.calorieBudget.percent;
   const proteinGoal = data.goals.proteinGrams || 130;
   const proteinLeft = Math.max(0, Math.round(proteinGoal - data.todayTotals.protein));
+  const proteinPct =
+    proteinGoal > 0 ? Math.round((data.todayTotals.protein / proteinGoal) * 100) : 0;
 
-  const advice = [
-    {
-      kicker: t("dashboard.adviceProteinKicker"),
-      title: isToday ? t("dashboard.adviceProteinForDay") : t("dashboard.adviceProteinThatDay"),
-      body: proteinLeft
-        ? t("dashboard.adviceProteinUnderTarget", { grams: proteinLeft })
-        : t("dashboard.adviceProteinTargetReached"),
-    },
-    {
-      kicker: t("dashboard.adviceHowToKicker"),
-      title: t("dashboard.adviceHowToPlateProtein"),
-      body: t("dashboard.adviceHowToPlateProteinBody"),
-    },
-    {
-      kicker: t("dashboard.adviceBudgetKicker"),
-      title: left ? t("dashboard.adviceBudgetAvailable") : t("dashboard.adviceBudgetReached"),
-      body: left
-        ? t("dashboard.adviceBudgetAvailableBody", { left })
-        : isToday
-          ? t("dashboard.adviceBudgetMetToday")
-          : t("dashboard.adviceBudgetUsedThatDay"),
-    },
-  ];
+  // User wall-clock time + meal/totals tables → varied, not always the same three cards
+  const adviceSpecs = pickDashboardAdvice({
+    now: new Date(),
+    isToday,
+    leftKcal: left,
+    mealCount: data.mealCount,
+    proteinLeft,
+    proteinGrams: data.todayTotals.protein,
+    proteinGoal,
+    carbsGrams: data.todayTotals.carbs,
+    fatGrams: data.todayTotals.fat,
+    sugarGrams: data.todayTotals.sugar ?? 0,
+    carbsGoal: data.goals.carbsGrams,
+    fatGoal: data.goals.fatGrams,
+    mealTypeBreakdown: data.mealTypeBreakdown,
+    steps: data.steps.today,
+    stepsGoal: data.steps.goal,
+    calorieConsumed: data.calorieBudget.consumed,
+    calorieGoal: data.calorieBudget.goal,
+  });
+
+  const advice = adviceSpecs.map((spec) => ({
+    key: spec.id,
+    kicker: t(spec.kickerKey),
+    title: t(spec.titleKey, { ...(spec.params ?? {}), pct: proteinPct }),
+    body: t(spec.bodyKey, { ...(spec.params ?? {}), pct: proteinPct }),
+  }));
 
   return (
     // Previously dimmed the whole dashboard to 0.72 while refetching. Combined with
@@ -339,12 +368,19 @@ export function DashboardClient() {
           <StatColumn
             className="na-stat-col na-stat-col-meals"
             align="left"
-            rows={[
-              { label: t("dashboard.breakfast"), value: String(Math.round(data.mealTypeBreakdown.breakfast)) },
-              { label: t("dashboard.lunch"), value: String(Math.round(data.mealTypeBreakdown.lunch)) },
-              { label: t("dashboard.dinner"), value: String(Math.round(data.mealTypeBreakdown.dinner)) },
-              { label: t("dashboard.snacks"), value: String(Math.round(data.mealTypeBreakdown.snack)) },
-            ]}
+            rows={(
+              [
+                ["breakfast", t("dashboard.breakfast"), data.mealTypeBreakdown.breakfast],
+                ["lunch", t("dashboard.lunch"), data.mealTypeBreakdown.lunch],
+                ["dinner", t("dashboard.dinner"), data.mealTypeBreakdown.dinner],
+                ["snack", t("dashboard.snacks"), data.mealTypeBreakdown.snack],
+              ] as const
+            ).map(([mealType, label, kcal]) => ({
+              label,
+              value: String(Math.round(kcal)),
+              href: `/app/chat?mealType=${mealType}&date=${localDateKey(selectedDate)}`,
+              hint: t("dashboard.logMealForSlot", { meal: label }),
+            }))}
           />
         </div>
 
@@ -489,7 +525,7 @@ export function DashboardClient() {
       </h3>
       <div className="na-scroll-x">
         {advice.map((c) => (
-          <div key={c.title} className="card elev-sm" style={{ minWidth: 180, maxWidth: 180, flex: "none" }}>
+          <div key={c.key} className="card elev-sm" style={{ minWidth: 180, maxWidth: 200, flex: "none" }}>
             <div className="card-kicker">{c.kicker}</div>
             <div style={serif(15, { lineHeight: 1.25, marginBottom: 4 })}>{c.title}</div>
             <p className="card-body" style={{ opacity: 0.65, fontSize: 12.5, margin: 0 }}>

@@ -249,19 +249,47 @@ export function inferMealType(date = new Date()): string {
   return "snack";
 }
 
+const MEAL_TYPES = new Set(["breakfast", "lunch", "dinner", "snack"]);
+
+export function resolveMealSchedule(options?: {
+  mealDatetime?: string | Date | null;
+  mealType?: string | null;
+}): { mealDatetime: Date; mealType: string } {
+  let mealDatetime = new Date();
+  if (options?.mealDatetime) {
+    const parsed =
+      options.mealDatetime instanceof Date
+        ? options.mealDatetime
+        : new Date(options.mealDatetime);
+    if (!Number.isNaN(parsed.getTime())) {
+      mealDatetime = parsed;
+    }
+  }
+
+  const explicit = (options?.mealType ?? "").trim().toLowerCase();
+  const mealType = MEAL_TYPES.has(explicit) ? explicit : inferMealType(mealDatetime);
+  return { mealDatetime, mealType };
+}
+
 export async function saveMeal(
   userId: number,
   items: Array<VisionFoodItem & { nutrition: { calories: number; protein: number; fat: number; carbs: number; sugar: number } }>,
   imageUrl?: string,
   mealImage?: MealImageInput,
-  visionModelVersion?: string
+  visionModelVersion?: string,
+  schedule?: { mealDatetime?: string | Date | null; mealType?: string | null }
 ): Promise<number> {
-  const mealDatetime = new Date();
+  const fromImage = mealImage?.capturedAt ? new Date(mealImage.capturedAt) : undefined;
+  const imageOk = fromImage && !Number.isNaN(fromImage.getTime()) ? fromImage : undefined;
+  const { mealDatetime, mealType } = resolveMealSchedule({
+    mealDatetime: schedule?.mealDatetime ?? imageOk,
+    mealType: schedule?.mealType,
+  });
   const meal = await prisma.meal.create({
     data: {
       userId,
       mealDatetime,
-      mealType: inferMealType(mealDatetime),
+      mealType,
       source: "home",
       imageUrl,
       items: {
@@ -285,7 +313,7 @@ export async function saveMeal(
                 height: mealImage.height,
                 fileSizeBytes: mealImage.fileSizeBytes,
                 contentHash: mealImage.contentHash,
-                capturedAt: new Date(mealImage.capturedAt),
+                capturedAt: mealDatetime,
                 recognizedAt: new Date(),
                 visionModelVersion,
               },

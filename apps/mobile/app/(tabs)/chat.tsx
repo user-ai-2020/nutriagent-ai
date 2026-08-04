@@ -4,6 +4,7 @@ import {
   FlatList,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   StyleSheet,
   Text,
@@ -12,7 +13,9 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { resolveCitationDisplay } from "@nutriagent/shared/citation-sources";
 import { localizeFoodDisplayName, localizeMealTitle } from "@nutriagent/shared/foodDisplayName";
 import { useAuth } from "@/context/AuthContext";
 import { API_URL, api } from "@/lib/api";
@@ -22,22 +25,6 @@ import { FlowerMacro, NutritionFlower } from "@/components/NutritionFlower";
 import { Card, IconButton, Kicker, Tag } from "@/components/ui";
 import { colors, fonts, radius, serif, space, textMuted } from "@/theme/tokens";
 import type { CitationSource } from "@nutriagent/shared/types";
-
-/**
- * Citations arrive as either a plain string or a { title, url } object (web/RAG
- * sources). Rendering the object form directly as a child throws
- * "Objects are not valid as a React child" and crashes the chat screen, so
- * always reduce a source to a display string first.
- */
-function sourceLabel(src: CitationSource): string {
-  if (src && typeof src === "object") {
-    const { title, url } = src as { title?: unknown; url?: unknown };
-    if (typeof title === "string" && title) return title;
-    if (typeof url === "string" && url) return url;
-    return "";
-  }
-  return typeof src === "string" ? src : String(src ?? "");
-}
 
 interface Nutrition {
   calories: number;
@@ -83,11 +70,42 @@ export default function ChatScreen() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const { token } = useAuth();
+  const params = useLocalSearchParams<{ mealType?: string; date?: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
+
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const defaultYmd = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const defaultHm = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const typeParam = typeof params.mealType === "string" ? params.mealType : "";
+  const dateParam = typeof params.date === "string" ? params.date : "";
+  const [mealDate, setMealDate] = useState(dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : defaultYmd);
+  const [mealTime, setMealTime] = useState(
+    typeParam === "breakfast"
+      ? "08:00"
+      : typeParam === "lunch"
+        ? "13:00"
+        : typeParam === "dinner"
+          ? "19:00"
+          : typeParam === "snack"
+            ? "15:30"
+            : defaultHm
+  );
+  const [mealType, setMealType] = useState(
+    typeParam === "breakfast" || typeParam === "lunch" || typeParam === "dinner" || typeParam === "snack"
+      ? typeParam
+      : ""
+  );
+
+  function mealDatetimeIso() {
+    const [y, m, d] = mealDate.split("-").map(Number);
+    const [hh, mm] = mealTime.split(":").map(Number);
+    return new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, 0, 0).toISOString();
+  }
 
   async function pickImage(useCamera: boolean) {
     const perm = useCamera
@@ -119,6 +137,8 @@ export default function ChatScreen() {
         const form = new FormData();
         form.append("message", text);
         form.append("image", { uri: imageUri, name: "meal.jpg", type: "image/jpeg" } as unknown as Blob);
+        form.append("mealDatetime", mealDatetimeIso());
+        if (mealType) form.append("mealType", mealType);
         const res = await fetch(`${API_URL}/api/chat/message`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -129,7 +149,11 @@ export default function ChatScreen() {
       } else {
         data = await api("/api/chat/message", token, {
           method: "POST",
-          body: JSON.stringify({ message: text }),
+          body: JSON.stringify({
+            message: text,
+            mealDatetime: mealDatetimeIso(),
+            ...(mealType ? { mealType } : {}),
+          }),
         });
       }
 
@@ -188,13 +212,21 @@ export default function ChatScreen() {
 
               {item.sources?.length ? (
                 <View style={styles.sourceRow}>
-                  {item.sources.slice(0, 3).map((s, idx) => {
-                    const label = sourceLabel(s);
+                  {item.sources.slice(0, 5).map((s, idx) => {
+                    const { label, url } = resolveCitationDisplay(s, t);
                     if (!label) return null;
                     return (
-                      <Tag key={idx} variant="outline">
-                        {label}
-                      </Tag>
+                      <TouchableOpacity
+                        key={idx}
+                        disabled={!url}
+                        onPress={() => {
+                          if (url) void Linking.openURL(url);
+                        }}
+                      >
+                        <Tag variant="outline">
+                          {url ? `${label} ↗` : label}
+                        </Tag>
+                      </TouchableOpacity>
                     );
                   })}
                 </View>
@@ -263,6 +295,45 @@ export default function ChatScreen() {
               <Text style={styles.quickText}>{t(key)}</Text>
             </TouchableOpacity>
           ))}
+        </View>
+
+        <View style={styles.scheduleRow}>
+          <TextInput
+            style={styles.scheduleInput}
+            value={mealDate}
+            onChangeText={setMealDate}
+            placeholder={t("chat.mealDate")}
+            placeholderTextColor={textMuted[50]}
+            autoCapitalize="none"
+          />
+          <TextInput
+            style={styles.scheduleInput}
+            value={mealTime}
+            onChangeText={setMealTime}
+            placeholder={t("chat.mealTime")}
+            placeholderTextColor={textMuted[50]}
+            autoCapitalize="none"
+          />
+          <View style={styles.mealTypeRow}>
+            {(["", "breakfast", "lunch", "dinner", "snack"] as const).map((slot) => {
+              const label =
+                slot === ""
+                  ? t("chat.mealTypeAuto")
+                  : t(`dashboard.${slot === "snack" ? "snack" : slot}`);
+              const active = mealType === slot;
+              return (
+                <TouchableOpacity
+                  key={slot || "auto"}
+                  style={[styles.mealTypeChip, active && styles.mealTypeChipActive]}
+                  onPress={() => setMealType(slot)}
+                >
+                  <Text style={[styles.mealTypeChipText, active && styles.mealTypeChipTextActive]} numberOfLines={1}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         <View style={styles.composer}>
@@ -339,6 +410,30 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   quickText: { fontFamily: fonts.body, fontSize: 12.5, color: colors.text },
+
+  scheduleRow: { gap: 8 },
+  scheduleInput: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    borderRadius: radius.md,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: colors.bg,
+  },
+  mealTypeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  mealTypeChip: {
+    borderWidth: 1,
+    borderColor: colors.divider,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  mealTypeChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  mealTypeChipText: { fontFamily: fonts.body, fontSize: 11.5, color: colors.text },
+  mealTypeChipTextActive: { color: colors.bg },
 
   composer: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   input: {

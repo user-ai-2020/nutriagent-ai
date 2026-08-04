@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import Svg, { Circle } from "react-native-svg";
 import { useAuth } from "@/context/AuthContext";
@@ -27,15 +27,31 @@ function greeting() {
   return "Good evening";
 }
 
-function StatColumn({ align, rows }: { align: "right" | "left"; rows: Array<[string, string]> }) {
+function StatColumn({
+  align,
+  rows,
+}: {
+  align: "right" | "left";
+  rows: Array<{ label: string; value: string; onPress?: () => void }>;
+}) {
   return (
     <View style={{ flex: 1, gap: space[4] }}>
-      {rows.map(([label, value]) => (
-        <View key={label}>
-          <Text style={[styles.statLabel, { textAlign: align }]}>{label}</Text>
-          <Text style={[serif(22, { color: colors.accent }), { textAlign: align }]}>{value}</Text>
-        </View>
-      ))}
+      {rows.map((row) => {
+        const body = (
+          <>
+            <Text style={[styles.statLabel, { textAlign: align }]}>{row.label}</Text>
+            <Text style={[serif(22, { color: colors.accent }), { textAlign: align }]}>{row.value}</Text>
+          </>
+        );
+        if (row.onPress) {
+          return (
+            <Pressable key={row.label} onPress={row.onPress} accessibilityRole="button">
+              {body}
+            </Pressable>
+          );
+        }
+        return <View key={row.label}>{body}</View>;
+      })}
     </View>
   );
 }
@@ -130,9 +146,9 @@ export default function DashboardScreen() {
           <StatColumn
             align="right"
             rows={[
-              ["Steps", data.steps.today.toLocaleString()],
-              ["Protein", `${Math.round(data.todayTotals.protein)}g`],
-              ["Meals", String(data.mealCount)],
+              { label: "Steps", value: data.steps.today.toLocaleString() },
+              { label: "Protein", value: `${Math.round(data.todayTotals.protein)}g` },
+              { label: "Meals", value: String(data.mealCount) },
             ]}
           />
 
@@ -160,12 +176,22 @@ export default function DashboardScreen() {
 
           <StatColumn
             align="left"
-            rows={[
-              ["Breakfast", String(Math.round(data.mealTypeBreakdown.breakfast))],
-              ["Lunch", String(Math.round(data.mealTypeBreakdown.lunch))],
-              ["Dinner", String(Math.round(data.mealTypeBreakdown.dinner))],
-              ["Snacks", String(Math.round(data.mealTypeBreakdown.snack))],
-            ]}
+            rows={(
+              [
+                ["breakfast", "Breakfast", data.mealTypeBreakdown.breakfast],
+                ["lunch", "Lunch", data.mealTypeBreakdown.lunch],
+                ["dinner", "Dinner", data.mealTypeBreakdown.dinner],
+                ["snack", "Snacks", data.mealTypeBreakdown.snack],
+              ] as const
+            ).map(([mealType, label, kcal]) => ({
+              label,
+              value: String(Math.round(kcal)),
+              onPress: () => {
+                const d = new Date();
+                const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                router.push(`/(tabs)/chat?mealType=${mealType}&date=${ymd}`);
+              },
+            }))}
           />
         </View>
 

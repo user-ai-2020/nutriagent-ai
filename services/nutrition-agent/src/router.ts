@@ -172,10 +172,8 @@ nutritionRouter.post("/advise", async (req, res) => {
     CITATION_SOURCES.USER_PROFILE,
     CITATION_SOURCES.RAG_KB,
     CITATION_SOURCES.DRI_WHO,
+    CITATION_SOURCES.ISRAEL_FOOD_UNION,
   ];
-  if (lang === "he") {
-    adviseSources.push(CITATION_SOURCES.ISRAEL_FOOD_UNION);
-  }
 
   res.json({
     reply,

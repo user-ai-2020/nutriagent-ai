@@ -472,7 +472,11 @@ async function saveMealNode(state: typeof OrchestratorState.State) {
     state.rerankerCalc.items,
     state.request.imageUrl ?? state.request.mealImage?.displayUrl,
     state.request.mealImage,
-    buildVisionModelVersion(state.visionResult)
+    buildVisionModelVersion(state.visionResult),
+    {
+      mealDatetime: state.request.mealDatetime,
+      mealType: state.request.mealType,
+    }
   );
   
   const panels: MultiModelMealAnalysis["panels"] = state.panelCalcs.map(({ mr, calc: c }) => ({

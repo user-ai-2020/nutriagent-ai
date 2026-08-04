@@ -170,6 +170,13 @@ export interface OrchestratorRequest {
   mealId?: number;
   profile?: UserProfileData;
   mealImage?: MealImageInput;
+  /**
+   * Optional override when logging a meal photo for a past/future slot.
+   * ISO 8601 string; used for `meals.meal_datetime` (not only image EXIF).
+   */
+  mealDatetime?: string;
+  /** breakfast | lunch | dinner | snack — when set, overrides hour-based inference. */
+  mealType?: "breakfast" | "lunch" | "dinner" | "snack";
 }
 
 export interface OrchestratorResponse {
