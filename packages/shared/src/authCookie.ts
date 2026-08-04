@@ -23,12 +23,21 @@ export function readAuthTokenFromCookieString(cookieHeader: string | undefined |
   }
 }
 
+/**
+ * `Secure` is only meaningful over HTTPS — browsers silently DISCARD a Secure
+ * cookie set on a plain-HTTP origin, which logs the user straight back out.
+ *
+ * This used to allowlist `localhost`/`127.0.0.1` by hostname, so any other
+ * HTTP origin (a VM's bare IP, a LAN address, a preview host) got `Secure` and
+ * lost the session with a confusing "Authentication required". Protocol is the
+ * thing that actually matters, so check that instead: HTTPS anywhere → Secure,
+ * HTTP anywhere → not.
+ */
 function secureFlagForEnv(): string {
   if (typeof globalThis === "undefined") return "";
-  const loc = (globalThis as { location?: { hostname?: string } }).location;
-  if (!loc?.hostname) return "";
-  if (loc.hostname === "localhost" || loc.hostname === "127.0.0.1") return "";
-  return "; Secure";
+  const loc = (globalThis as { location?: { protocol?: string } }).location;
+  if (!loc?.protocol) return "";
+  return loc.protocol === "https:" ? "; Secure" : "";
 }
 
 export function buildAuthTokenCookie(token: string): string {
