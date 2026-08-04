@@ -1,0 +1,122 @@
+# Always-Free profile: fits the stack onto a 1GB e2-micro.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#                  -f docker-compose.micro.yml up -d
+#
+# The full profile needs ~3.8GB. This trims it to ~1.2GB of limits, which still
+# exceeds 1GB of RAM — deploy.sh's swap (use 3G here) absorbs the difference.
+# Expect it to be SLOW: swap-backed Node processes, cold starts of several
+# seconds. Fine for clicking through a demo; not for concurrent users.
+#
+# What is given up versus the full profile:
+#   - Redis           audit-log cache; app falls back to Postgres (no feature loss)
+#   - admin portal    start it only when demoing admin features (see below)
+#   - headroom        vision analysis is the heaviest path and may still OOM
+#
+# Start the admin portal on demand:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#                  -f docker-compose.micro.yml up -d admin-portal
+
+services:
+  # Redis is optional by design: getRedis() returns null when REDIS_URL is unset
+  # and audit writes go to Postgres, which is the source of truth anyway.
+  redis:
+    profiles: ["disabled"]
+
+  postgres:
+    # Tuned right down: the demo dataset is tiny, and the default shared_buffers
+    # (256MB) alone would eat a quarter of the machine.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=32MB
+      - -c
+      - max_connections=20
+      - -c
+      - work_mem=2MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - effective_cache_size=256MB
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # Node's default heap assumes far more RAM than this VM has. Capping it makes
+  # V8 collect garbage earlier instead of ballooning until the kernel OOM-kills it.
+  graphdb-agent:
+    environment:
+      NODE_OPTIONS: --max-old-space-size=80
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+
+  nutrition-agent:
+    environment:
+      NODE_OPTIONS: --max-old-space-size=96
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  text2sql-agent:
+    environment:
+      NODE_OPTIONS: --max-old-space-size=96
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  vision-agent:
+    environment:
+      NODE_OPTIONS: --max-old-space-size=112
+    deploy:
+      resources:
+        limits:
+          memory: 144M
+
+  # Heaviest agent: embeddings + hybrid search hold more in memory.
+  rag-agent:
+    environment:
+      NODE_OPTIONS: --max-old-space-size=128
+    deploy:
+      resources:
+        limits:
+          memory: 160M
+
+  orchestrator:
+    environment:
+      NODE_OPTIONS: --max-old-space-size=112
+    deploy:
+      resources:
+        limits:
+          memory: 144M
+
+  api-gateway:
+    environment:
+      # No REDIS_URL — the gateway skips the cache entirely.
+      NODE_OPTIONS: --max-old-space-size=128
+    deploy:
+      resources:
+        limits:
+          memory: 160M
+
+  user-portal:
+    environment:
+      NODE_OPTIONS: --max-old-space-size=160
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+
+  # Not started by default — `profiles` keeps it out of `up -d` unless requested.
+  admin-portal:
+    profiles: ["admin"]
+    environment:
+      NODE_OPTIONS: --max-old-space-size=160
+    deploy:
+      resources:
+        limits:
+          memory: 192M

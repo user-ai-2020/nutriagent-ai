@@ -37,10 +37,38 @@ That guide assumes 2 containers; NutriAgent runs **11**.
 `deploy.sh` warns and pauses if it detects under 3.5 GB, and adds 2 GB of swap
 either way, since Docker builds and Next.js SSR spike above steady state.
 
-**Want to stay on free-tier e2-micro?** Not possible with the full stack. You
-would have to drop the admin portal, Redis, and at least three agents — which
-removes most of what the project demonstrates. Paying ~$27/mo from the credit is
-the better trade.
+### Free-tier fallback (e2-micro)
+
+`docker-compose.micro.yml` trims the stack from 3.8 GB to ~1.38 GB of limits so it
+fits — just — on the Always Free e2-micro:
+
+- **Redis dropped.** Optional by design: `getRedis()` returns `null` when
+  `REDIS_URL` is unset and audit writes go to Postgres, the source of truth. No
+  feature is lost.
+- **Admin portal behind a profile.** Start it only when demoing admin features:
+  `docker compose … --profile admin up -d admin-portal`
+- **Postgres tuned down** (32 MB shared_buffers) and **every Node heap capped**, so
+  V8 collects early instead of ballooning into an OOM-kill.
+
+```bash
+# Free tier is US-only — me-west1 does not qualify.
+gcloud compute instances create nutriagent-prod \
+  --zone=us-central1-a --machine-type=e2-micro \
+  --image-family=ubuntu-2204-lts --image-project=ubuntu-os-cloud \
+  --boot-disk-size=30GB --tags=nutriagent
+
+SWAP_SIZE=3G ./deploy.sh
+docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+               -f docker-compose.micro.yml up -d
+```
+
+Realistic expectations: 1.38 GB of limits on 1 GB of RAM leans on ~580 MB of swap.
+It boots and serves a demo, but meal-photo analysis — three vision calls plus
+reranking — is the heaviest path and can still be OOM-killed. The 1 GB/month
+egress allowance also goes quickly if several people load the portal.
+
+Use this after the $300 trial expires; during the trial, e2-medium is the better
+experience and the credit expires unused anyway.
 
 ---
 
