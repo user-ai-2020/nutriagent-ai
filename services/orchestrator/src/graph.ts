@@ -568,13 +568,17 @@ async function saveMealNode(state: typeof OrchestratorState.State) {
  * the same non-degradation pattern already fixed on the RAG and GraphDB nodes.
  */
 function historyUnavailableReply(lang: ReturnType<typeof resolveResponseLanguage>): string {
+  // Deliberately says "your data", not "meal history": this path also serves
+  // steps and exercise questions, and telling someone who asked about steps that
+  // their *meal* history failed is a small lie that sends them debugging the
+  // wrong thing.
   if (lang === "he") {
-    return "לא הצלחתי לשלוף את היסטוריית הארוחות שלך כרגע. אפשר לנסות שוב עוד רגע, או לנסח את השאלה אחרת (למשל: \"מה אכלתי אתמול?\").";
+    return "לא הצלחתי לשלוף את הנתונים שלך כרגע. אפשר לנסות שוב עוד רגע, או לנסח את השאלה אחרת.";
   }
   if (lang === "ru") {
-    return "Не удалось получить историю приёмов пищи. Попробуйте ещё раз через минуту или сформулируйте вопрос иначе (например: «Что я ел вчера?»).";
+    return "Не удалось получить ваши данные. Попробуйте ещё раз через минуту или сформулируйте вопрос иначе.";
   }
-  return "I couldn't retrieve your meal history just now. Please try again in a moment, or rephrase the question (for example: \"What did I eat yesterday?\").";
+  return "I couldn't retrieve your data just now. Please try again in a moment, or try rephrasing the question.";
 }
 
 async function text2sqlNode(state: typeof OrchestratorState.State) {
