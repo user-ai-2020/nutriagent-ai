@@ -13,9 +13,13 @@
 
 name: GCP Deploy
 
+# Manual trigger only. This is the Cloud Run path; the single-VM path
+# (docs/DEPLOY_VM.md) does not use it. Running on every push would fail until
+# GCP_WIF_PROVIDER / GCP_SERVICE_ACCOUNT / GCP_PROJECT_ID exist as repo secrets.
+# To deploy automatically once GCP is set up, add:
+#   push:
+#     branches: [main]
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       skip_migrations:
