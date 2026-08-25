@@ -14,7 +14,7 @@ const LINK_KEYS = [
   { href: "/llm", labelKey: "admin.llm", Icon: LlmIcon },
 ] as const;
 
-type AuthState = "loading" | "admin" | "denied" | "unauthenticated";
+type AuthState = "loading" | "admin" | "unauthenticated";
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -24,10 +24,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     api<{ role: string }>("/api/auth/me")
-      .then((me) => {
+      .then(async (me) => {
         if (me.role !== "Admin") {
-          // Keep shared cookie — User sessions from :3008 must not be wiped.
-          setAuthState("denied");
+          await api("/api/auth/logout", { method: "POST" }).catch(() => {});
+          router.replace("/");
           return;
         }
         setAuthState("admin");
@@ -43,30 +43,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     return (
       <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", opacity: 0.6 }}>
         {t("common.loading")}
-      </div>
-    );
-  }
-
-  if (authState === "denied") {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "var(--space-8)",
-          textAlign: "center",
-        }}
-      >
-        <h1 style={{ fontSize: 24, margin: "0 0 var(--space-2)" }}>{t("auth.adminAccessRequired")}</h1>
-        <p className="note" style={{ maxWidth: 420, margin: "0 0 var(--space-4)" }}>
-          {t("admin.accessDeniedHint")}
-        </p>
-        <Link href="http://127.0.0.1:3008" className="btn btn-primary">
-          {t("admin.goToUserPortal")}
-        </Link>
       </div>
     );
   }

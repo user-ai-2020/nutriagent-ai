@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 
-type Gate = "checking" | "form" | "denied";
+type Gate = "checking" | "form";
+
+function userPortalUrl(): string {
+  if (typeof window === "undefined") return "http://localhost:3008";
+  return `${window.location.protocol}//${window.location.hostname}:3008`;
+}
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -13,13 +18,14 @@ export default function LoginPage() {
   const [email, setEmail] = useState("admin@nutriagent.ai");
   const [password, setPassword] = useState("admin123");
   const [error, setError] = useState("");
+  const [switchNotice, setSwitchNotice] = useState(false);
   const [loading, setLoading] = useState(false);
   const [gate, setGate] = useState<Gate>("checking");
 
   useEffect(() => {
     let cancelled = false;
 
-    async function reuseSharedSession() {
+    async function bootstrap() {
       try {
         const me = await api<{ role: string }>("/api/auth/me");
         if (cancelled) return;
@@ -27,14 +33,18 @@ export default function LoginPage() {
           router.replace("/dashboard");
           return;
         }
-        setGate("denied");
-      } catch {
+        // User-portal session is shared via cookie — clear it so admin can sign in here.
         await api("/api/auth/logout", { method: "POST" }).catch(() => {});
+        if (!cancelled) {
+          setSwitchNotice(true);
+          setGate("form");
+        }
+      } catch {
         if (!cancelled) setGate("form");
       }
     }
 
-    void reuseSharedSession();
+    void bootstrap();
     return () => {
       cancelled = true;
     };
@@ -45,6 +55,7 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
+      await api("/api/auth/logout", { method: "POST" }).catch(() => {});
       const data = await api<{ user: { role: string } }>("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
@@ -65,30 +76,6 @@ export default function LoginPage() {
     return (
       <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", opacity: 0.6 }}>
         {t("common.loading")}
-      </div>
-    );
-  }
-
-  if (gate === "denied") {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "var(--space-8)",
-          textAlign: "center",
-        }}
-      >
-        <h1 style={{ fontSize: 24, margin: "0 0 var(--space-2)" }}>{t("auth.adminAccessRequired")}</h1>
-        <p className="note" style={{ maxWidth: 420, margin: "0 0 var(--space-4)" }}>
-          {t("admin.accessDeniedHint")}
-        </p>
-        <a href="http://127.0.0.1:3008" className="btn btn-primary">
-          {t("admin.goToUserPortal")}
-        </a>
       </div>
     );
   }
@@ -115,6 +102,20 @@ export default function LoginPage() {
         onSubmit={handleSubmit}
       >
         <div className="card-kicker">{t("auth.signIn")}</div>
+        {switchNotice ? (
+          <p
+            className="note"
+            style={{
+              fontSize: 12.5,
+              margin: "0 0 var(--space-3)",
+              padding: "10px 12px",
+              borderRadius: 8,
+              background: "color-mix(in srgb, var(--color-accent-1-700, #2D6A4F) 8%, transparent)",
+            }}
+          >
+            {t("admin.switchFromUserHint")}
+          </p>
+        ) : null}
         <div className="field">
           <label htmlFor="ad-user">{t("common.email")}</label>
           <input
@@ -146,6 +147,9 @@ export default function LoginPage() {
         </button>
         <p className="note" style={{ fontSize: 11.5, opacity: 0.55, margin: "var(--space-2) 0 0" }}>
           {t("admin.signInNote")}
+        </p>
+        <p className="note" style={{ fontSize: 11.5, opacity: 0.55, margin: "var(--space-2) 0 0" }}>
+          <a href={userPortalUrl()}>{t("admin.goToUserPortal")}</a>
         </p>
       </form>
     </div>

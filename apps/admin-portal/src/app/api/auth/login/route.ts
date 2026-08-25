@@ -13,6 +13,18 @@ export async function POST(req: NextRequest) {
   const data = await upstream.json();
   if (!upstream.ok) return NextResponse.json(data, { status: upstream.status });
 
+  if (data.user?.role !== "Admin") {
+    const denied = NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    denied.cookies.set("nutriagent_token", "", {
+      httpOnly: true,
+      secure: shouldUseSecureCookie(req),
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+    return denied;
+  }
+
   const res = NextResponse.json({ user: data.user });
   res.cookies.set("nutriagent_token", data.token, {
     httpOnly: true,

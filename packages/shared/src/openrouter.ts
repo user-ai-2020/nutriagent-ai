@@ -178,3 +178,56 @@ export async function openRouterEmbed(params: {
 }
 
 export { EMBEDDING_MODEL, RAG_EMBEDDING_DIMENSIONS };
+
+export interface OpenRouterKeyBalance {
+  label: string;
+  limit: number | null;
+  limitRemaining: number | null;
+  usage: number;
+  usageDaily: number;
+  usageMonthly: number;
+  expiresAt: string | null;
+  isFreeTier: boolean;
+}
+
+/** Live credit info from OpenRouter — admin-only; never return the raw key. */
+export async function fetchOpenRouterKeyBalance(apiKey: string): Promise<OpenRouterKeyBalance> {
+  const response = await fetch(`${OPENROUTER_BASE_URL}/auth/key`, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "HTTP-Referer": process.env.OPENROUTER_APP_URL || "http://localhost:3000",
+      "X-Title": process.env.OPENROUTER_APP_NAME || "NutriAgent AI",
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(friendlyOpenRouterError(error));
+  }
+
+  const json = (await response.json()) as {
+    data?: {
+      label?: string;
+      limit?: number | null;
+      limit_remaining?: number | null;
+      usage?: number;
+      usage_daily?: number;
+      usage_weekly?: number;
+      usage_monthly?: number;
+      expires_at?: string | null;
+      is_free_tier?: boolean;
+    };
+  };
+
+  const d = json.data ?? {};
+  return {
+    label: d.label ?? "",
+    limit: d.limit ?? null,
+    limitRemaining: d.limit_remaining ?? null,
+    usage: d.usage ?? 0,
+    usageDaily: d.usage_daily ?? 0,
+    usageMonthly: d.usage_monthly ?? 0,
+    expiresAt: d.expires_at ?? null,
+    isFreeTier: Boolean(d.is_free_tier),
+  };
+}

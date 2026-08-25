@@ -472,6 +472,8 @@ export const enTranslations = {
     errorSelfDelete: "Cannot delete your own account",
     accessDeniedHint:
       "This portal is for administrators only. Sign in with an admin account or use the user app.",
+    switchFromUserHint:
+      "You were signed in on the user app — enter admin credentials below to open this portal.",
     goToUserPortal: "Go to user app",
   },
 } as const;

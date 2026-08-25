@@ -467,5 +467,6 @@ export const heTranslations = {
     accessDeniedHint:
       "פורטל זה מיועד למנהלים בלבד. התחברו עם חשבון מנהל או השתמשו באפליקציית המשתמש.",
     goToUserPortal: "לאפליקציית המשתמש",
+    switchFromUserHint: "הייתם מחוברים כמשתמש רגיל — הזינו פרטי מנהל כדי להיכנס לפורטל זה.",
   },
 } as const;

@@ -68,6 +68,10 @@ export async function getCachedLlmSettings(): Promise<LlmConfig> {
   return data;
 }
 
+export function invalidateLlmSettingsCache(): void {
+  _llmCache = null;
+}
+
 export async function getAiStatus(): Promise<AiStatus> {
   const row = await prisma.llmSettings.findUnique({ where: { id: 1 } });
   return resolveAiStatus({

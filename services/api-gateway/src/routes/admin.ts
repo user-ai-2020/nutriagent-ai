@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma, ensureLlmSettings, maskApiKey, getAiStatus } from "@nutriagent/db";
-import { AUDIT_ACTIONS, getRecentAuditLogs, LLM_MODEL_CATALOG } from "@nutriagent/shared";
+import { prisma, ensureLlmSettings, maskApiKey, getAiStatus, invalidateLlmSettingsCache } from "@nutriagent/db";
+import { AUDIT_ACTIONS, getRecentAuditLogs, LLM_MODEL_CATALOG, fetchOpenRouterKeyBalance } from "@nutriagent/shared";
 import { authMiddleware, adminMiddleware, AuthRequest } from "../middleware/auth";
 import { writeAuditLog } from "../lib/audit";
 import { getRedis } from "../lib/redis";
@@ -357,6 +357,78 @@ adminRouter.get("/llm", async (_req, res, next) => {
   }
 });
 
+adminRouter.get("/llm/openrouter-balance", async (_req, res, next) => {
+  try {
+    const aiStatus = await getAiStatus();
+    const settings = await ensureLlmSettings();
+    const apiKey = settings.openRouterApiKey;
+
+    if (!apiKey) {
+      res.json({ configured: false, aiStatus });
+      return;
+    }
+
+    try {
+      const balance = await fetchOpenRouterKeyBalance(apiKey);
+      res.json({ configured: true, aiStatus, balance });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "OpenRouter balance lookup failed";
+      res.json({ configured: true, aiStatus, error: message });
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
+const llmKeySchema = z.object({
+  openRouterApiKey: z.string().min(1).nullable(),
+});
+
+adminRouter.put("/llm/api-key", async (req: AuthRequest, res, next) => {
+  try {
+    const body = llmKeySchema.parse(req.body);
+    await prisma.llmSettings.upsert({
+      where: { id: 1 },
+      update: { openRouterApiKey: body.openRouterApiKey },
+      create: {
+        id: 1,
+        openRouterApiKey: body.openRouterApiKey,
+        chatModel: process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini",
+        visionModel1: process.env.OPENROUTER_VISION_MODEL || "google/gemini-2.5-flash",
+        visionModel2: "google/gemini-2.5-flash",
+        routerModel: "openai/gpt-4o-mini",
+        ragModel: "openai/gpt-4o-mini",
+        text2sqlModel: "openai/gpt-4o-mini",
+        graphdbModel: "openai/gpt-4o-mini",
+      },
+    });
+
+    invalidateLlmSettingsCache();
+
+    await writeAuditLog({
+      userId: req.user!.userId,
+      actionType: "ADMIN_LLM_UPDATE",
+      details: { apiKeyChanged: true, keyAction: body.openRouterApiKey ? "set" : "cleared" },
+      sourceIp: req.ip,
+    });
+
+    const settings = await ensureLlmSettings();
+    const aiStatus = await getAiStatus();
+    res.json({
+      settings: {
+        ...settings,
+        openRouterApiKey: undefined,
+        openRouterApiKeyMasked: maskApiKey(settings.openRouterApiKey),
+        hasApiKey: Boolean(settings.openRouterApiKey),
+      },
+      aiStatus,
+      catalog: LLM_MODEL_CATALOG,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 const llmUpdateSchema = z.object({
   openRouterApiKey: z.string().optional().nullable(),
   chatModel: z.string().min(1).optional(),
@@ -397,6 +469,8 @@ adminRouter.put("/llm", async (req: AuthRequest, res, next) => {
         ...(body.graphdbModel ? { graphdbModel: body.graphdbModel } : {}),
       },
     });
+
+    invalidateLlmSettingsCache();
 
     await writeAuditLog({
       userId: req.user!.userId,
