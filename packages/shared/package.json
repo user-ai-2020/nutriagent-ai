@@ -29,6 +29,10 @@
       "types": "./dist/foodDisplayName.d.ts",
       "default": "./dist/foodDisplayName.js"
     },
+    "./aiMode": {
+      "types": "./dist/aiMode.d.ts",
+      "default": "./dist/aiMode.js"
+    },
     "./types": {
       "types": "./dist/types.d.ts",
       "default": "./dist/types.js"

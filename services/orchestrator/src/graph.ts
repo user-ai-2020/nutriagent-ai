@@ -505,6 +505,7 @@ async function saveMealNode(state: typeof OrchestratorState.State) {
     totalNutrition: state.rerankerCalc.totalNutrition,
     summary: state.rerankerCalc.summary,
     mealDescription,
+    visionUsedMock: Boolean(state.visionResult.usedMockVision),
     sources: uniqueCitationSources(state.sources),
     panels,
     rerankerScores: state.visionResult.rerankerScores,

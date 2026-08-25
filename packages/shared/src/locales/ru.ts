@@ -125,6 +125,8 @@ export const ruTranslations = {
     matchPercent: "{{pct}}% совпадение",
     somethingWrong: "Что-то пошло не так.",
     visionModelComparison: "Сравнение моделей зрения",
+    mockVisionWarning:
+      "Тестовые данные — сканирование не использовало живое зрение (нет ключа или ошибка модели). Результат может не совпадать с фото.",
     noItemsDetected: "Продукты не обнаружены",
     itemsAvgConfidenceOne: "{{count}} продукт · {{avgConf}}% ср. совпадение",
     itemsAvgConfidenceOther: "{{count}} продуктов · {{avgConf}}% ср. совпадение",
@@ -227,6 +229,15 @@ export const ruTranslations = {
     methodNote: "BMR: формула Mifflin-St Jeor. Активность: уровни FAO/WHO. Белок: 1,2–2,0 г/кг в зависимости от цели (Morton 2018, Helms 2014). Только оценка — не медицинская рекомендация.",
     title: "Настройки",
     languageHint: "Ответы ИИ следуют этой настройке. Иврит использует письмо справа налево.",
+    aiModeTitle: "Режим ИИ",
+    aiModeLive: "OpenRouter (живой)",
+    aiModeMock: "Mock (тестовые данные)",
+    aiModeLiveHint:
+      "Фото еды и чат используют реальные модели через ключ OpenRouter. Если сканирование всё ещё показывает курицу/брокколи/рис — ключ может отсутствовать в контейнере или вызов зрения не удался.",
+    aiModeMockHint:
+      "Ключ OpenRouter не настроен. Сканирование возвращает фиксированные продукты (курица, брокколи, рис) независимо от фото.",
+    aiModeSourceEnv: "Ключ из окружения сервера",
+    aiModeSourceDatabase: "Ключ из настроек Admin",
     dietGoals: "Цели питания",
     calorieGoal: "Цель по калориям (ккал/день)",
     proteinGoal: "Цель по белку (г/день)",

@@ -125,6 +125,8 @@ export const heTranslations = {
     matchPercent: "{{pct}}% התאמה",
     somethingWrong: "משהו השתבש.",
     visionModelComparison: "השוואת מודלי ראייה",
+    mockVisionWarning:
+      "נתוני דוגמה — הסריקה לא השתמשה בראייה חיה (מפתח חסר או שגיאת מודל). התוצאות עלולות שלא להתאים לתמונה.",
     noItemsDetected: "לא זוהו פריטים",
     itemsAvgConfidenceOne: "פריט {{count}} · {{avgConf}}% התאמה ממוצעת",
     itemsAvgConfidenceOther: "{{count}} פריטים · {{avgConf}}% התאמה ממוצעת",
@@ -232,6 +234,15 @@ export const heTranslations = {
     methodNote: "BMR: נוסחת Mifflin-St Jeor. פעילות: רמות FAO/WHO. חלבון: 1.2–2.0 גרם/ק\"ג לפי מטרה (Morton 2018, Helms 2014). הערכה בלבד — אינה ייעוץ רפואי.",
     title: "הגדרות",
     languageHint: "תשובות הבינה המלאכותית יעקבו אחר ההעדפה. עברית משתמשת בפריסה מימין לשמאל.",
+    aiModeTitle: "מצב AI",
+    aiModeLive: "OpenRouter חי",
+    aiModeMock: "Mock (נתוני דוגמה)",
+    aiModeLiveHint:
+      "תמונות ארוחה וצ'אט משתמשים במודלים אמיתיים דרך מפתח OpenRouter. אם סריקה עדיין מציגה עוף/ברוקоли/אורז — ייתכן שהמפתח חסר במיכל או שהקריאה נכשלה.",
+    aiModeMockHint:
+      "לא הוגדר מפתח OpenRouter. סריקות ארוחה מחזירות מזונות דוגמה קבועים (עוף, ברוקoli, אורז) ללא קשר לתמונה.",
+    aiModeSourceEnv: "מפתח מסביבת השרת",
+    aiModeSourceDatabase: "מפתח מהגדרות Admin",
     dietGoals: "יעדי תזונה",
     calorieGoal: "יעד קלוריות (קק״ל/יום)",
     proteinGoal: "יעד חלבון (גרם/יום)",

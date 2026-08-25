@@ -33,5 +33,6 @@ export * from "./validateEnv";
 export * from "./listen";
 export * from "./nutrition-targets";
 export * from "./foodDisplayName";
+export * from "./aiMode";
 export { createId } from "@paralleldrive/cuid2";
 

@@ -23,6 +23,11 @@ interface LlmResponse {
     openRouterApiKeyMasked: string;
     hasApiKey: boolean;
   };
+  aiStatus: {
+    mode: "mock" | "live";
+    hasApiKey: boolean;
+    apiKeySource: "env" | "database" | "none";
+  };
   catalog: {
     chat: ModelOption[];
     vision: ModelOption[];
@@ -138,6 +143,38 @@ export default function LlmPage() {
       <p style={{ fontSize: 13, opacity: 0.6, margin: "0 0 var(--space-4)" }}>
         OpenRouter key and model routing for the Chat, Vision, Router, RAG, Text2SQL and GraphDB agents.
       </p>
+
+      {data?.aiStatus ? (
+        <div
+          className="card elev-sm"
+          style={{ maxWidth: 620, marginBottom: "var(--space-4)", padding: "var(--space-3) var(--space-4)" }}
+          data-testid="admin-ai-mode"
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+            <span style={{ fontSize: 14, fontWeight: 600 }}>AI mode</span>
+            <span
+              className={`tag ${data.aiStatus.mode === "live" ? "tag-accent" : "tag-outline"}`}
+              style={
+                data.aiStatus.mode === "mock"
+                  ? { borderColor: "#b42318", color: "#b42318" }
+                  : undefined
+              }
+            >
+              {data.aiStatus.mode === "live" ? "Live OpenRouter" : "Mock (sample data)"}
+            </span>
+          </div>
+          <p className="note" style={{ margin: 0, fontSize: 12.5, lineHeight: 1.45 }}>
+            {data.aiStatus.mode === "live"
+              ? "Agents will call OpenRouter. Env `.env` key overrides Admin-stored key."
+              : "No key configured — meal scans return fixed sample foods (chicken, broccoli, rice) regardless of the photo."}
+          </p>
+          {data.aiStatus.mode === "live" ? (
+            <p className="note" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
+              Key source: {data.aiStatus.apiKeySource === "env" ? "server environment" : "Admin database"}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {isLoading || !form || !data ? (
         <p className="note">Loading configuration…</p>

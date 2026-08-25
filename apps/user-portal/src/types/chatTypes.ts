@@ -57,4 +57,6 @@ export type Msg =
       tips?: string[];
       /** Meal photo, so a chat reopened from history still shows its thumbnail. */
       imageUrl?: string;
+      /** Sample vision path — scan did not use live OpenRouter. */
+      visionUsedMock?: boolean;
     };

@@ -1,5 +1,5 @@
 import { prisma } from "./client";
-import { DEFAULT_LLM_CONFIG, LlmConfig } from "@nutriagent/shared";
+import { DEFAULT_LLM_CONFIG, LlmConfig, resolveAiStatus, type AiStatus } from "@nutriagent/shared";
 
 export async function ensureLlmSettings(): Promise<LlmConfig> {
   const row = await prisma.llmSettings.upsert({
@@ -66,4 +66,12 @@ export async function getCachedLlmSettings(): Promise<LlmConfig> {
   const data = await getLlmSettings();
   _llmCache = { data, ts: Date.now() };
   return data;
+}
+
+export async function getAiStatus(): Promise<AiStatus> {
+  const row = await prisma.llmSettings.findUnique({ where: { id: 1 } });
+  return resolveAiStatus({
+    envKey: process.env.OPENROUTER_API_KEY,
+    storedKey: row?.openRouterApiKey,
+  });
 }

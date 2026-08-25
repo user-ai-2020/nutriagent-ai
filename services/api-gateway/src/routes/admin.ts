@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma, ensureLlmSettings, maskApiKey } from "@nutriagent/db";
+import { prisma, ensureLlmSettings, maskApiKey, getAiStatus } from "@nutriagent/db";
 import { AUDIT_ACTIONS, getRecentAuditLogs, LLM_MODEL_CATALOG } from "@nutriagent/shared";
 import { authMiddleware, adminMiddleware, AuthRequest } from "../middleware/auth";
 import { writeAuditLog } from "../lib/audit";
@@ -341,6 +341,7 @@ adminRouter.get("/stats", async (_req, res, next) => {
 adminRouter.get("/llm", async (_req, res, next) => {
   try {
     const settings = await ensureLlmSettings();
+    const aiStatus = await getAiStatus();
     res.json({
       settings: {
         ...settings,
@@ -348,6 +349,7 @@ adminRouter.get("/llm", async (_req, res, next) => {
         openRouterApiKeyMasked: maskApiKey(settings.openRouterApiKey),
         hasApiKey: Boolean(settings.openRouterApiKey),
       },
+      aiStatus,
       catalog: LLM_MODEL_CATALOG,
     });
   } catch (err) {
@@ -407,6 +409,7 @@ adminRouter.put("/llm", async (req: AuthRequest, res, next) => {
     });
 
     const settings = await ensureLlmSettings();
+    const aiStatus = await getAiStatus();
     res.json({
       settings: {
         ...settings,
@@ -414,6 +417,7 @@ adminRouter.put("/llm", async (req: AuthRequest, res, next) => {
         openRouterApiKeyMasked: maskApiKey(settings.openRouterApiKey),
         hasApiKey: Boolean(settings.openRouterApiKey),
       },
+      aiStatus,
       catalog: LLM_MODEL_CATALOG,
     });
   } catch (err) {

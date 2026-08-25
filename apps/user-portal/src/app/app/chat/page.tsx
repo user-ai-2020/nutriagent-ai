@@ -190,6 +190,7 @@ function storedMessageToMsg(m: StoredChatMessage, fallbackName: string): Msg {
       warnings: mm.warnings,
       tips: mm.tips,
       imageUrl: mm.imageUrl,
+      visionUsedMock: mm.visionUsedMock,
     };
   }
 
@@ -453,6 +454,7 @@ export default function ChatPage() {
           warnings?: string[];
           tips?: string[];
           imageUrl?: string;
+          visionUsedMock?: boolean;
         };
       };
 
@@ -525,6 +527,7 @@ export default function ChatPage() {
           warnings: data.multiModelMealAnalysis.warnings,
           tips: data.multiModelMealAnalysis.tips,
           imageUrl: data.multiModelMealAnalysis.imageUrl,
+          visionUsedMock: data.multiModelMealAnalysis.visionUsedMock,
         });
       } else if (data.multiModelMealAnalysis) {
         next.push({
@@ -541,6 +544,7 @@ export default function ChatPage() {
           warnings: data.multiModelMealAnalysis.warnings,
           tips: data.multiModelMealAnalysis.tips,
           imageUrl: data.multiModelMealAnalysis.imageUrl,
+          visionUsedMock: data.multiModelMealAnalysis.visionUsedMock,
         });
       } else if (data.mealAnalysis) {
         const confidences = data.mealAnalysis.items.map((i) => i.visionConfidence ?? 0);
@@ -936,6 +940,7 @@ export default function ChatPage() {
                   goalProtein={goalProtein}
                   fusionMethod={msg.fusionMethod}
                   fallbackModelLabel={msg.fallbackModelLabel}
+                  visionUsedMock={msg.visionUsedMock}
                 />
                 {msg.sources?.length ? (
                   <div className="chat-source-tags">

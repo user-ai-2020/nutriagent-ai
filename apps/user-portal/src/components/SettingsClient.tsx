@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useLanguage } from "@/lib/language";
@@ -12,6 +13,7 @@ import { useProfile, useUpdateProfile } from "@/hooks/queries";
 // sharp and @google-cloud/storage, which webpack then tries to bundle for the
 // browser and the build dies on fs/net/child_process.
 import { calculateBodyMetrics, hasCompleteBodyMetrics } from "@nutriagent/shared/nutrition-targets";
+import type { AiStatus } from "@nutriagent/shared/aiMode";
 import {
   applyRestrictions,
   DIET_TYPES,
@@ -49,6 +51,11 @@ export function SettingsClient() {
   const [languageSaving, setLanguageSaving] = useState(false);
   const { data: profileData } = useProfile();
   const updateProfile = useUpdateProfile();
+  const { data: aiStatus } = useQuery({
+    queryKey: ["ai-status"],
+    queryFn: () => api<AiStatus>("/api/system/ai-status"),
+    staleTime: 60_000,
+  });
 
   useEffect(() => {
     if (profileData) {
@@ -97,6 +104,38 @@ export function SettingsClient() {
         <p className="note" style={{ margin: "0 0 var(--space-5)" }}>
           {user?.name} · {user?.email}
         </p>
+
+        {aiStatus ? (
+          <div
+            className="card elev-sm"
+            style={{ marginBottom: "var(--space-5)", padding: "var(--space-3) var(--space-4)" }}
+            data-testid="settings-ai-mode"
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{t("settings.aiModeTitle")}</span>
+              <span
+                className={`tag ${aiStatus.mode === "live" ? "tag-accent" : "tag-outline"}`}
+                style={
+                  aiStatus.mode === "mock"
+                    ? { borderColor: "var(--color-accent-2-700, #b42318)", color: "var(--color-accent-2-700, #b42318)" }
+                    : undefined
+                }
+              >
+                {aiStatus.mode === "live" ? t("settings.aiModeLive") : t("settings.aiModeMock")}
+              </span>
+            </div>
+            <p className="note" style={{ margin: 0, fontSize: 12.5, lineHeight: 1.45 }}>
+              {aiStatus.mode === "live" ? t("settings.aiModeLiveHint") : t("settings.aiModeMockHint")}
+            </p>
+            {aiStatus.mode === "live" && aiStatus.apiKeySource !== "none" ? (
+              <p className="note" style={{ margin: "8px 0 0", fontSize: 11.5, opacity: 0.75 }}>
+                {aiStatus.apiKeySource === "env"
+                  ? t("settings.aiModeSourceEnv")
+                  : t("settings.aiModeSourceDatabase")}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         <h3 style={{ fontSize: 15, marginBottom: "var(--space-2)" }}>{t("common.languageLabel")}</h3>
         <p className="note" style={{ margin: "0 0 var(--space-2)" }}>

@@ -128,6 +128,8 @@ export const enTranslations = {
     matchPercent: "{{pct}}% match",
     somethingWrong: "Something went wrong.",
     visionModelComparison: "Vision model comparison",
+    mockVisionWarning:
+      "Sample data — this scan did not use live vision (missing key or model error). Results may not match your photo.",
     noItemsDetected: "No items detected",
     itemsAvgConfidenceOne: "{{count}} item · {{avgConf}}% avg match",
     itemsAvgConfidenceOther: "{{count}} items · {{avgConf}}% avg match",
@@ -236,6 +238,15 @@ export const enTranslations = {
     title: "Settings",
     languageHint:
       "AI responses follow this preference. Hebrew uses right-to-left layout.",
+    aiModeTitle: "AI mode",
+    aiModeLive: "Live OpenRouter",
+    aiModeMock: "Mock (sample data)",
+    aiModeLiveHint:
+      "Meal photos and chat use real models via your OpenRouter key. If a scan still shows chicken/broccoli/rice sample items, the key may be missing inside the container or the vision call failed — recreate services after updating `.env`.",
+    aiModeMockHint:
+      "No OpenRouter key is configured. Meal scans return fixed sample foods (chicken, broccoli, rice) regardless of the photo. Add a key in Admin → LLM settings or the server `.env`.",
+    aiModeSourceEnv: "Key from server environment",
+    aiModeSourceDatabase: "Key from Admin settings",
     dietGoals: "Diet goals",
     calorieGoal: "Calorie goal (kcal/day)",
     proteinGoal: "Protein goal (g/day)",

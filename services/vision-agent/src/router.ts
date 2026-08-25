@@ -100,6 +100,7 @@ visionRouter.post("/analyze", async (req, res) => {
   };
 
   let modelResults: VisionModelResult[];
+  let usedMockVision = false;
 
   const llm = await getCachedLlmSettings();
   const apiKey = llm.openRouterApiKey || process.env.OPENROUTER_API_KEY;
@@ -115,16 +116,20 @@ visionRouter.post("/analyze", async (req, res) => {
         // If ALL models returned errors with no items, fall back to mock
         if (modelResults.every((r) => r.items.length === 0 && r.error)) {
           console.warn("All vision models failed, using mock fallback");
+          usedMockVision = true;
           modelResults = mockModelResults(message);
         }
       } catch (err) {
         console.warn("Vision analysis failed, using mock fallback:", err);
+        usedMockVision = true;
         modelResults = mockModelResults(message);
       }
     } else {
+      usedMockVision = true;
       modelResults = mockModelResults(message);
     }
   } else {
+    usedMockVision = true;
     modelResults = mockModelResults(message);
   }
 
@@ -145,6 +150,7 @@ visionRouter.post("/analyze", async (req, res) => {
     fusionMethod,
     fallbackModelId,
     fallbackModelLabel,
+    usedMockVision,
   };
 
   res.json(response);

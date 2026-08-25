@@ -250,6 +250,7 @@ export function MultiModelMealCards({
   goalProtein,
   fusionMethod = "full",
   fallbackModelLabel,
+  visionUsedMock,
 }: {
   panels: Panel[];
   rerankerScores: RerankerScore[];
@@ -257,6 +258,7 @@ export function MultiModelMealCards({
   goalProtein: number;
   fusionMethod?: FusionMethod;
   fallbackModelLabel?: string;
+  visionUsedMock?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -276,6 +278,24 @@ export function MultiModelMealCards({
 
   return (
     <div style={{ maxWidth: 720, width: "100%", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+      {visionUsedMock ? (
+        <div
+          className="card elev-sm"
+          style={{
+            padding: "var(--space-3)",
+            border: "1px solid color-mix(in srgb, var(--color-accent-2-700, #b42318) 40%, transparent)",
+            background: "color-mix(in srgb, var(--color-accent-2-700, #b42318) 6%, transparent)",
+          }}
+          data-testid="mock-vision-warning"
+        >
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-accent-2-700, #b42318)", marginBottom: 4 }}>
+            {t("settings.aiModeMock")}
+          </div>
+          <p style={{ fontSize: 13, margin: 0, lineHeight: 1.45, color: muted() }}>
+            {t("chat.mockVisionWarning")}
+          </p>
+        </div>
+      ) : null}
       <div>
         <div style={serif(16, { marginBottom: 4 })}>{t("chat.visionModelComparison")}</div>
         <p style={{ fontSize: 13, color: muted(), margin: 0 }}>

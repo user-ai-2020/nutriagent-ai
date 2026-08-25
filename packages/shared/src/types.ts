@@ -128,6 +128,8 @@ export interface MultiModelMealAnalysis {
   items: Array<VisionFoodItem & { nutrition: NutritionData }>;
   totalNutrition: NutritionData;
   summary: string;
+  /** True when vision returned sample data (no key or model failure) — not a live scan. */
+  visionUsedMock?: boolean;
   /** Short natural-language read of what vision detected in the photo. */
   mealDescription?: string;
   sources: CitationSource[];
@@ -152,6 +154,8 @@ export interface VisionAnalyzeResponse {
   fusionMethod?: FusionMethod;
   fallbackModelId?: string;
   fallbackModelLabel?: string;
+  /** Sample chicken/broccoli/rice path — OpenRouter key missing or all models failed. */
+  usedMockVision?: boolean;
 }
 
 export type ChatIntent =
