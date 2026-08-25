@@ -418,6 +418,8 @@ export const enTranslations = {
     users: "Users",
     auditLog: "Audit Log",
     llm: "LLM",
+    settings: "Settings",
+    settingsHint: "Account preferences for the admin portal — language and layout direction.",
     signInNote: "Admin role required. All sign-ins are written to the audit log.",
     userManagement: "User management",
     userManagementHint: "Change roles and account status — changes take effect immediately.",

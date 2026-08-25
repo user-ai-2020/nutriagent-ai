@@ -412,6 +412,8 @@ export const heTranslations = {
     users: "משתמשים",
     auditLog: "יומן ביקורת",
     llm: "LLM",
+    settings: "הגדרות",
+    settingsHint: "העדפות חשבון לפורטל הניהול — שפה וכיוון תצוגה.",
     signInNote: "נדרשת הרשאת מנהל. כל התחברות נרשמת ביומן הביקורת.",
     userManagement: "ניהול משתמשים",
     userManagementHint: "שנו תפקידים וסטטוס חשבון — השינויים נכנסים לתוקף מיד.",

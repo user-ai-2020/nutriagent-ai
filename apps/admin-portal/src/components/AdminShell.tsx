@@ -5,13 +5,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
-import { AuditIcon, LlmIcon, OverviewIcon, UsersIcon } from "./icons";
+import { AuditIcon, LlmIcon, OverviewIcon, SettingsIcon, UsersIcon } from "./icons";
 
 const LINK_KEYS = [
   { href: "/dashboard", labelKey: "admin.overview", Icon: OverviewIcon },
   { href: "/users", labelKey: "admin.users", Icon: UsersIcon },
   { href: "/audit-logs", labelKey: "admin.auditLog", Icon: AuditIcon },
   { href: "/llm", labelKey: "admin.llm", Icon: LlmIcon },
+  { href: "/settings", labelKey: "admin.settings", Icon: SettingsIcon },
 ] as const;
 
 type AuthState = "loading" | "admin" | "unauthenticated";
