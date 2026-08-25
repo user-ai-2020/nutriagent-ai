@@ -89,7 +89,7 @@ This is a single Compute Engine VM (`nutriagent-prod`, e2-medium, `me-west1-a`) 
 gcloud compute instances create nutriagent-prod \
   --zone=me-west1-a --machine-type=e2-medium \
   --image-family=ubuntu-2204-lts --image-project=ubuntu-os-cloud \
-  --boot-disk-size=20GB --tags=nutriagent
+  --boot-disk-size=30GB --tags=nutriagent
 
 # 2. Open the ports it needs (once per project)
 gcloud compute firewall-rules create allow-nutriagent-ports \
@@ -113,7 +113,41 @@ chmod +x deploy.sh && ./deploy.sh
 
 Full walkthrough with firewall/billing detail: **[docs/DEPLOY_VM.md](docs/DEPLOY_VM.md)**. A managed Cloud Run alternative (autoscaling, no VM to babysit) also exists: **[infra/README.md](infra/README.md)**.
 
-> **e2-micro (the free-tier machine) cannot run this.** The stack is 11 containers totalling roughly 3.8 GB of memory limits; a 1 GB machine can't start it. e2-medium is the realistic minimum — Google's $300 trial credit covers it for roughly 11 months.
+**Already have it deployed and just need to push an update?** **[docs/UPDATE_AND_DEPLOY.md](docs/UPDATE_AND_DEPLOY.md)** — the commit → CI build → `git pull && ./deploy.sh` loop, plus fixes for the git-lock and CI-timing issues that actually came up doing this.
+
+#### VM disk full during `./deploy.sh`
+
+On a **20 GB** boot disk, repeated `docker compose pull` runs leave old image layers behind. A failed pull often ends with `no space left on device` while only a few hundred MB remain free.
+
+**On the VM** (after `gcloud compute ssh nutriagent-prod --zone=me-west1-a`):
+
+```bash
+cd ~/nutriagent
+df -h /
+docker system df
+
+docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+docker system prune -a -f          # removes unused images — keeps Postgres volumes
+docker builder prune -a -f
+
+df -h /                            # aim for several GB free before pulling again
+./deploy.sh
+```
+
+`docker system prune -a` can sit silent for several minutes on a nearly full disk — that is normal. Open a second SSH session and run `watch -n 5 df -h /` to confirm free space is growing.
+
+**Before each update** (optional habit that avoids the failure):
+
+```bash
+cd ~/nutriagent
+docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+docker image prune -a -f
+./deploy.sh
+```
+
+Full walkthrough (symptoms, what not to delete, resizing the disk to 30 GB): **[docs/UPDATE_AND_DEPLOY.md#free-disk-space-on-the-vm](docs/UPDATE_AND_DEPLOY.md#free-disk-space-on-the-vm)**.
+
+> **e2-micro (the free-tier machine) cannot run this.** The stack is 11 containers totalling roughly 3.8 GB of memory limits; a 1 GB machine can't start it. e2-medium is the realistic minimum — Google's $300 trial credit covers it for roughly 11 months. Use a **30 GB** boot disk if you can; 20 GB works once but fills up after a few CI rebuilds.
 
 ---
 

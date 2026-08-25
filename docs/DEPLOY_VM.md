@@ -119,7 +119,7 @@ not drain unnoticed.
 | Name | `nutriagent-prod` |
 | Region | `me-west1` (Tel Aviv) or `us-central1` |
 | Series / Machine type | **E2 / e2-medium** (4 GB) |
-| Boot disk | **Ubuntu 22.04 LTS**, **20 GB** |
+| Boot disk | **Ubuntu 22.04 LTS**, **30 GB** (20 GB works but fills after a few image pulls) |
 | Network tags | `nutriagent` |
 
 Use full Ubuntu LTS rather than Ubuntu Minimal — Minimal omits tooling you will
@@ -155,16 +155,20 @@ git branch -M main
 git push -u origin main
 ```
 
-Make the repository **Private**.
+**Private vs public:** either works. A private repo needs a Personal Access
+Token for the VM to clone with (**Settings → Developer settings → Personal
+access tokens → Tokens (classic) → Generate new token**, scope `repo` only —
+use the `ghp_…` value as the password when `git clone` prompts). A **public**
+repo skips that entirely — `git clone` on the VM needs no credentials at all,
+which is what this project actually uses in practice.
 
-Then create a token for the VM to clone with: **Settings → Developer settings →
-Personal access tokens → Tokens (classic) → Generate new token**, scope **`repo`**
-only. Copy the `ghp_…` value.
-
-CI (`.github/workflows/docker-publish.yml`) builds and pushes all 9 images to
-Docker Hub on every push to `main`. Add `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
-as repository secrets — the VM pulls those images rather than building locally,
-which matters because building the Next.js portals on 4 GB can OOM.
+CI (`.github/workflows/docker-publish.yml`) builds and pushes all 9 app images
+plus the `migrate` image to Docker Hub on every push to `main`. Add
+`DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` as repository secrets — the VM pulls
+those images rather than building locally, which matters because building the
+Next.js portals on 4 GB can OOM. Also confirm the repo's **default branch is
+`main`** (Settings → Branches) — `git clone` with no branch flag checks out
+whatever the default is, and if that's stale, the VM silently deploys old code.
 
 ---
 
@@ -255,6 +259,23 @@ docker compose $D restart orchestrator
 docker compose $D ps
 docker compose $D down           # stop everything
 ```
+
+### Disk cleanup (when `pull` fails with "no space left on device")
+
+Repeated `./deploy.sh` runs on a 20 GB disk accumulate old Docker image layers.
+Before pulling again:
+
+```bash
+cd ~/nutriagent
+docker compose $D down
+docker system prune -a -f      # do NOT add --volumes — keeps Postgres data
+docker builder prune -a -f
+df -h /                        # need several GB free
+./deploy.sh
+```
+
+Prune can appear hung for many minutes on a full disk; watch `df -h /` in a second
+SSH session. Full notes: [UPDATE_AND_DEPLOY.md](UPDATE_AND_DEPLOY.md#free-disk-space-on-the-vm).
 
 Database access (no public port):
 
