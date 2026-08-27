@@ -86,7 +86,7 @@ export const heTranslations = {
   chat: {
     title: "צ'אט",
     subtitle: "צלמו ארוחה או שאלו שאלה — NutriAgent מנתח לפי הפרופיל שלכם.",
-    placeholder: "שאלו על תזונה, ארוחות או המלצות…",
+    placeholder: "שאלו על תזונה, ארוחות, בריאות או המלצות…",
     analyzeMeal: "נתח את הארוחה הזו",
     quickReplyEatNow: "מה כדאי לי לאכול עכשיו?",
     quickReplyYesterday: "מה אכלתי אתמול?",
@@ -104,7 +104,7 @@ export const heTranslations = {
     historyUntitled: "שיחה ריקה",
     historyClose: "סגור",
     emptyGreeting:
-      "צהריים טובים! צלמו את הארוחה הבאה ואפרק את התזונה — או שאלו כל דבר על התפריט שלכם.",
+      "צהריים טובים! צלמו את הארוחה הבאה ואפרק את התזונה — או שאלו על התפריט, הבריאות או הארוחות שלכם.",
     photoReady: "התמונה מוכנה",
     logMealPhoto: "צלם ארוחה",
     servicesUnavailable: "שירותי הבינה המלאכותית אינם זמינים. ודאו שהסוכנים פועלים ונסו שוב.",

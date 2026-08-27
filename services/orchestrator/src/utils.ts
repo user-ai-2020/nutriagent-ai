@@ -1,5 +1,5 @@
 import { prisma } from "@nutriagent/db";
-import { CitationSource, MealImageInput, MultiModelMealAnalysis, VisionAnalyzeResponse, VisionFoodItem, ChatIntent } from "@nutriagent/shared";
+import { CitationSource, MealImageInput, MultiModelMealAnalysis, VisionAnalyzeResponse, VisionFoodItem, ChatIntent, isClearlyOutOfScope } from "@nutriagent/shared";
 
 export const VISION_URL = process.env.VISION_AGENT_URL || "http://localhost:3002";
 export const NUTRITION_URL = process.env.NUTRITION_AGENT_URL || "http://localhost:3003";
@@ -106,14 +106,16 @@ export async function callAgentWithTimeout<T>(
 /**
  * Intent Routing Priority:
  * 1. Vision (meal_analysis): Triggers if an image is attached.
- * 2. Text2SQL (history_query): Triggers on personal history/logs (e.g. "how many calories did I eat").
+ * 2. Out of scope: obvious non-nutrition / non-health questions — refuse without calling agents.
+ * 3. Text2SQL (history_query): Triggers on personal history/logs (e.g. "how many calories did I eat").
  *    Takes precedence over generic factual queries to avoid misrouting personal queries.
- * 3. Question (question): Objective fact-lookup (e.g. "what is keto diet", "how many calories in apple").
- * 4. General Chat (general_chat): Fallback for subjective advice, recommendations, or greetings.
+ * 4. Question (question): Objective fact-lookup (e.g. "what is keto diet", "how many calories in apple").
+ * 5. General Chat (general_chat): Fallback for subjective advice, recommendations, or greetings.
  */
 export function classifyIntent(message: string, hasImage: boolean): ChatIntent {
   const lower = message.toLowerCase();
   if (hasImage) return "meal_analysis"; // 1. Vision
+  if (isClearlyOutOfScope(message)) return "out_of_scope";
 
   // 2. Text2SQL (History query - checking personal logs)
   if (

@@ -1,4 +1,4 @@
-import { openRouterChat, resolveResponseLanguage, responseLanguageInstruction } from "@nutriagent/shared";
+import { openRouterChat, resolveResponseLanguage, responseLanguageInstruction, scopeGuardrailInstruction } from "@nutriagent/shared";
 import type { HybridSearchHit } from "../search/hybridSearch.js";
 import { WEAK_MATCH_DISCLAIMER } from "../config/ragConstants.js";
 import type { ResponseLanguage } from "@nutriagent/shared";
@@ -47,6 +47,7 @@ export async function generateRagAnswer(params: {
 
   const system = [
     "You are a nutrition assistant. Answer using ONLY the provided sources.",
+    scopeGuardrailInstruction(),
     "Cite source titles inline.",
     responseLanguageInstruction(lang),
   ].join(" ");

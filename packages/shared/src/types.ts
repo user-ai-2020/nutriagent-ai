@@ -164,7 +164,8 @@ export type ChatIntent =
   | "restaurant_recommendation"
   | "history_query"
   | "question"
-  | "general_chat";
+  | "general_chat"
+  | "out_of_scope";
 
 export interface OrchestratorRequest {
   userId: number;

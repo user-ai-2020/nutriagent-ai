@@ -27,6 +27,7 @@ export * from "./vision-model-version";
 export * from "./food-match";
 export * from "./rag-config";
 export * from "./language";
+export * from "./scopeGuardrail";
 export * from "./citation-sources";
 export * from "./locales";
 export * from "./validateEnv";

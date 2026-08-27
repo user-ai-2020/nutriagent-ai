@@ -1,5 +1,5 @@
 import { getLlmSettings } from "@nutriagent/db";
-import { openRouterChat, resolveResponseLanguage, responseLanguageInstruction } from "@nutriagent/shared";
+import { openRouterChat, resolveResponseLanguage, responseLanguageInstruction, scopeGuardrailInstruction } from "@nutriagent/shared";
 import { formatHistoryRows, formatStepsRows } from "./formatHistoryRows";
 import { matchHistoryTemplate } from "./historyTemplates";
 
@@ -30,6 +30,7 @@ async function polishHistoryAnswer(params: {
           role: "system",
           content: [
             "You rewrite a meal-history answer for the user.",
+            scopeGuardrailInstruction(),
             "Keep EVERY fact, calorie number, quantity, and meal count exactly as given.",
             "Do not invent meals or change totals.",
             "Translate ALL meal types (breakfast/lunch/dinner/snack) and ALL food item names into the target language.",
@@ -97,6 +98,7 @@ export async function formatAnswer(
           role: "system",
           content: [
             "You are a friendly nutrition assistant.",
+            scopeGuardrailInstruction(),
             "Answer the user's question using ONLY the SQL result rows provided.",
             "Be concise. Include specific numbers (calories, grams, counts) when available.",
             "If rows are empty, say no data was found for that period.",

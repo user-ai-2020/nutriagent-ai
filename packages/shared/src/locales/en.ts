@@ -86,7 +86,7 @@ export const enTranslations = {
   chat: {
     title: "Chat",
     subtitle: "Snap a meal or ask a question — NutriAgent reasons over your profile.",
-    placeholder: "Ask about nutrition, meals, or recommendations…",
+    placeholder: "Ask about nutrition, meals, health, or recommendations…",
     analyzeMeal: "Analyze this meal",
     quickReplyEatNow: "What should I eat now?",
     quickReplyYesterday: "What did I eat yesterday?",
@@ -104,7 +104,7 @@ export const enTranslations = {
     historyUntitled: "Empty chat",
     historyClose: "Close",
     emptyGreeting:
-      "Good afternoon! Snap a photo of your next meal and I'll break down the nutrition — or ask me anything about your diet.",
+      "Good afternoon! Snap a photo of your next meal and I'll break down the nutrition — or ask me about your diet, health, or meals.",
     photoReady: "Photo ready",
     logMealPhoto: "Log a meal photo",
     servicesUnavailable:

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { UserProfileData, VisionFoodItem, openRouterChat, parseQuantityGrams, resolveResponseLanguage, responseLanguageInstruction, CITATION_SOURCES } from "@nutriagent/shared";
+import { UserProfileData, VisionFoodItem, isClearlyOutOfScope, outOfScopeReply, openRouterChat, parseQuantityGrams, resolveResponseLanguage, responseLanguageInstruction, scopeGuardrailInstruction, CITATION_SOURCES } from "@nutriagent/shared";
 import { getCachedLlmSettings } from "@nutriagent/db";
 import { findNutrition } from "./nutrition-db";
 import { isSuspiciousMealTotal, isSuspiciousNutrition, kcalPer100g } from "./nutrition-sanity";
@@ -131,6 +131,13 @@ nutritionRouter.post("/advise", async (req, res) => {
 
   let reply: string;
   const lang = resolveResponseLanguage(message, profile?.preferredLanguage);
+  if (isClearlyOutOfScope(message)) {
+    res.json({
+      reply: outOfScopeReply(lang),
+      sources: [],
+    });
+    return;
+  }
   const restrictions = profile?.healthRestrictions?.join(", ") || "none";
   const allergies = profile?.allergies?.join(", ") || "none";
 
@@ -140,6 +147,7 @@ nutritionRouter.post("/advise", async (req, res) => {
     if (apiKey) {
       const prompt = [
         "You are a nutrition advisor.",
+        scopeGuardrailInstruction(),
         `User restrictions: ${restrictions}. Allergies: ${allergies}. Diet: ${profile?.dietType || "balanced"}.`,
         `Context:\n${(context || []).join("\n")}`,
         `Question: ${message}`,
@@ -156,7 +164,7 @@ nutritionRouter.post("/advise", async (req, res) => {
           apiKey,
           model: llm.chatModel,
           messages: [
-            { role: "system", content: responseLanguageInstruction(lang) },
+            { role: "system", content: `${scopeGuardrailInstruction()}\n${responseLanguageInstruction(lang)}` },
             { role: "user", content: prompt },
           ],
           maxTokens: 400,
@@ -183,6 +191,7 @@ nutritionRouter.post("/advise", async (req, res) => {
 
 function generateMockAdvice(message: string, profile?: UserProfileData, context?: string[]): string {
   const lang = resolveResponseLanguage(message, profile?.preferredLanguage);
+  if (isClearlyOutOfScope(message)) return outOfScopeReply(lang);
   const lower = message.toLowerCase();
   const diet = profile?.dietType || "balanced";
   const calories = profile?.dietGoals?.dailyCalories || 2000;

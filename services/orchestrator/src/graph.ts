@@ -9,8 +9,10 @@ import {
   VisionFoodItem,
   openRouterEmbed,
   openRouterChat,
+  outOfScopeReply,
   resolveResponseLanguage,
   responseLanguageInstruction,
+  scopeGuardrailInstruction,
 } from "@nutriagent/shared";
 import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
 import pg from "pg";
@@ -74,6 +76,20 @@ async function classifyIntentNode(state: typeof OrchestratorState.State) {
   console.log("classifyIntentNode start");
   const intent = classifyIntent(state.request.message, Boolean(state.request.imageBase64));
   return { intent };
+}
+
+async function outOfScopeNode(state: typeof OrchestratorState.State) {
+  const lang = resolveResponseLanguage(
+    state.request.message,
+    state.request.profile?.preferredLanguage ?? null
+  );
+  const response: OrchestratorResponse = {
+    intent: "out_of_scope",
+    reply: outOfScopeReply(lang),
+    sources: [],
+    agentPath: ["Scope Guardrail"],
+  };
+  return { response, agentPath: ["Scope Guardrail"] };
 }
 
 async function enforceChatCapNode(state: typeof OrchestratorState.State) {
@@ -211,6 +227,7 @@ export async function questionRagNode(state: typeof OrchestratorState.State) {
 
   const lang = resolveResponseLanguage(state.request.message, state.request.profile?.preferredLanguage ?? null);
   const systemPrompt = `You are an objective nutrition and health assistant. 
+${scopeGuardrailInstruction()}
 Answer the user's factual question based ONLY on the provided context. 
 If the context contains no relevant information, state that you do not have enough information to answer. 
 Always cite sources inline (e.g., "According to [Source Title], ...").
@@ -711,6 +728,7 @@ const workflow = new StateGraph(OrchestratorState)
   .addNode("createUserActionLog", createUserActionLogNode)
   .addNode("finishUserActionLog", finishUserActionLogNode)
   .addNode("classifyIntent", classifyIntentNode)
+  .addNode("outOfScope", outOfScopeNode)
   
   // Branch 1: Question
   .addNode("questionEmbed", questionEmbedNode)
@@ -742,6 +760,7 @@ const workflow = new StateGraph(OrchestratorState)
       case "question": return "questionEmbed";
       case "meal_analysis": return "visionAnalyze";
       case "history_query": return "text2sql";
+      case "out_of_scope": return "outOfScope";
       default: return "ragRetrieveGeneral";
     }
   })
@@ -773,6 +792,7 @@ const workflow = new StateGraph(OrchestratorState)
   .addEdge("ragRetrieveGeneral", "graphdbAdvice")
   .addEdge("graphdbAdvice", "nutritionAdvise")
   .addEdge("nutritionAdvise", "finishUserActionLog")
+  .addEdge("outOfScope", "finishUserActionLog")
   .addEdge("finishUserActionLog", END);
 
 // Setup checkpointer
