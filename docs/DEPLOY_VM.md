@@ -260,10 +260,13 @@ docker compose $D ps
 docker compose $D down           # stop everything
 ```
 
-### Disk cleanup (when `pull` fails with "no space left on device")
+### Disk cleanup
 
-Repeated `./deploy.sh` runs on a 20 GB disk accumulate old Docker image layers.
-Before pulling again:
+`./deploy.sh` runs `docker system prune -a -f` and `docker builder prune -a -f`
+before and after each pull (volumes kept — Postgres data safe). Set
+`SKIP_DOCKER_PRUNE=1` to skip for one run.
+
+If `pull` still fails with "no space left on device", run a manual cleanup:
 
 ```bash
 cd ~/nutriagent

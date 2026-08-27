@@ -82,12 +82,16 @@ git pull
   `docker-compose.prod.yml`, `deploy.sh`, migrations, etc.)
 - `./deploy.sh` pulls the fresh `:latest` images from Docker Hub, runs any new
   database migrations, and restarts the stack.
+- `./deploy.sh` also **prunes unused Docker images and build cache** before and
+  after the pull so a 20 GB boot disk does not fill up over repeated deploys
+  (Postgres volumes are never removed). Skip with `SKIP_DOCKER_PRUNE=1 ./deploy.sh`.
 
 Run it **without `sudo`** — it elevates only where it needs to.
 
 ### Free disk space on the VM
 
-If `./deploy.sh` fails while pulling with:
+Automatic prune in `./deploy.sh` handles normal updates. If `./deploy.sh` still
+fails while pulling with:
 
 ```text
 failed to copy: ... no space left on device
@@ -137,15 +141,6 @@ remove NutriAgent images directly:
 docker images 'userai124356/nutriagent-*' -q | xargs -r docker rmi -f
 docker system prune -f
 df -h /
-```
-
-**Preventive habit before each deploy:**
-
-```bash
-cd ~/nutriagent
-docker compose -f docker-compose.yml -f docker-compose.prod.yml down
-docker image prune -a -f
-./deploy.sh
 ```
 
 **Longer-term:** resize the boot disk to **30 GB** in the GCP console (stop VM →

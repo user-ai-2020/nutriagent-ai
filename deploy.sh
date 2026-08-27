@@ -12,8 +12,10 @@
 #   1. installs Docker Engine + compose plugin if missing
 #   2. adds swap (the portals need headroom the VM's RAM alone doesn't give)
 #   3. checks .env exists and has the keys that matter
-#   4. pulls images, runs migrations, starts the stack
-#   5. seeds demo users on first run
+#   4. prunes unused Docker images/build cache (keeps volumes — Postgres safe)
+#   5. pulls images, runs migrations, starts the stack
+#   6. seeds demo users on first run
+#   7. prunes again after pull so old :latest layers do not accumulate
 #
 # Safe to re-run: it is the normal way to deploy a new version.
 
@@ -102,6 +104,25 @@ if [ -z "${OPENROUTER_API_KEY:-}" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+docker_cleanup() {
+  # Repeated `compose pull` on a 20 GB VM leaves old image layers behind until the
+  # disk hits 99%. Never pass --volumes — that would wipe Postgres data.
+  info "disk before: $(df -h / | awk 'NR==2{print $4 " free (" $5 " used)"}')"
+  $DOCKER system df 2>/dev/null | sed 's/^/    /' || true
+  $DOCKER system prune -a -f
+  $DOCKER builder prune -a -f 2>/dev/null || true
+  info "disk after:  $(df -h / | awk 'NR==2{print $4 " free (" $5 " used)"}')"
+}
+
+if [ "${SKIP_DOCKER_PRUNE:-}" != "1" ]; then
+  log "Reclaiming disk space (unused Docker images + build cache)"
+  info "Postgres volumes are kept — set SKIP_DOCKER_PRUNE=1 to skip"
+  docker_cleanup
+else
+  log "Skipping Docker prune (SKIP_DOCKER_PRUNE=1)"
+fi
+
+# ---------------------------------------------------------------------------
 log "Pulling images"
 $DOCKER compose $COMPOSE_FILES pull --quiet
 
@@ -122,6 +143,11 @@ fi
 
 log "Starting all services"
 $DOCKER compose $COMPOSE_FILES up -d
+
+if [ "${SKIP_DOCKER_PRUNE:-}" != "1" ]; then
+  log "Removing superseded image layers from this deploy"
+  docker_cleanup
+fi
 
 # ---------------------------------------------------------------------------
 log "Waiting for health checks"

@@ -117,9 +117,9 @@ Full walkthrough with firewall/billing detail: **[docs/DEPLOY_VM.md](docs/DEPLOY
 
 #### VM disk full during `./deploy.sh`
 
-On a **20 GB** boot disk, repeated `docker compose pull` runs leave old image layers behind. A failed pull often ends with `no space left on device` while only a few hundred MB remain free.
+On a **20 GB** boot disk, repeated `docker compose pull` runs leave old image layers behind. **`deploy.sh` now runs `docker system prune -a -f` and `docker builder prune -a -f` automatically** before and after each pull (Postgres volumes are never removed).
 
-**On the VM** (after `gcloud compute ssh nutriagent-prod --zone=me-west1-a`):
+If a pull still fails with `no space left on device`, run a deeper cleanup on the VM:
 
 ```bash
 cd ~/nutriagent
@@ -136,14 +136,7 @@ df -h /                            # aim for several GB free before pulling agai
 
 `docker system prune -a` can sit silent for several minutes on a nearly full disk — that is normal. Open a second SSH session and run `watch -n 5 df -h /` to confirm free space is growing.
 
-**Before each update** (optional habit that avoids the failure):
-
-```bash
-cd ~/nutriagent
-docker compose -f docker-compose.yml -f docker-compose.prod.yml down
-docker image prune -a -f
-./deploy.sh
-```
+Skip automatic prune for one run: `SKIP_DOCKER_PRUNE=1 ./deploy.sh`
 
 Full walkthrough (symptoms, what not to delete, resizing the disk to 30 GB): **[docs/UPDATE_AND_DEPLOY.md#free-disk-space-on-the-vm](docs/UPDATE_AND_DEPLOY.md#free-disk-space-on-the-vm)**.
 
