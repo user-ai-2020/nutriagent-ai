@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { UserProfileData, VisionFoodItem, isClearlyOutOfScope, isScopeRefusalReply, outOfScopeReply, openRouterChat, parseQuantityGrams, resolveResponseLanguage, responseLanguageInstruction, scopeGuardrailInstruction, CITATION_SOURCES } from "@nutriagent/shared";
+import { UserProfileData, VisionFoodItem, isClearlyOutOfScope, isNutritionInScopeMessage, isScopeRefusalReply, outOfScopeReply, openRouterChat, parseQuantityGrams, resolveResponseLanguage, responseLanguageInstruction, scopeGuardrailInstruction, CITATION_SOURCES } from "@nutriagent/shared";
 import { getCachedLlmSettings } from "@nutriagent/db";
 import { findNutrition } from "./nutrition-db";
 import { isSuspiciousMealTotal, isSuspiciousNutrition, kcalPer100g } from "./nutrition-sanity";
@@ -177,11 +177,12 @@ nutritionRouter.post("/advise", async (req, res) => {
   }
 
   const refused = isClearlyOutOfScope(message) || isScopeRefusalReply(reply);
-  if (refused) {
+  if (refused && !isNutritionInScopeMessage(message)) {
     reply = outOfScopeReply(lang);
   }
 
-  const adviseSources: string[] = refused
+  const adviseSources: string[] =
+    refused && !isNutritionInScopeMessage(message)
     ? []
     : [
         CITATION_SOURCES.USER_PROFILE,
@@ -198,7 +199,7 @@ nutritionRouter.post("/advise", async (req, res) => {
 
 function generateMockAdvice(message: string, profile?: UserProfileData, context?: string[]): string {
   const lang = resolveResponseLanguage(message, profile?.preferredLanguage);
-  if (isClearlyOutOfScope(message)) return outOfScopeReply(lang);
+  if (isClearlyOutOfScope(message) && !isNutritionInScopeMessage(message)) return outOfScopeReply(lang);
   const lower = message.toLowerCase();
   const diet = profile?.dietType || "balanced";
   const calories = profile?.dietGoals?.dailyCalories || 2000;

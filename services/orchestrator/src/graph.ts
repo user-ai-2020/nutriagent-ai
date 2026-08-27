@@ -14,6 +14,7 @@ import {
   responseLanguageInstruction,
   scopeGuardrailInstruction,
   isClearlyOutOfScope,
+  isNutritionInScopeMessage,
   isScopeRefusalReply,
   normalizeScopeRefusal,
 } from "@nutriagent/shared";
@@ -711,7 +712,8 @@ async function nutritionAdviseNode(state: typeof OrchestratorState.State) {
   );
   
   const refused =
-    isClearlyOutOfScope(state.request.message) || isScopeRefusalReply(adviceResult.reply || "");
+    !isNutritionInScopeMessage(state.request.message) &&
+    (isClearlyOutOfScope(state.request.message) || isScopeRefusalReply(adviceResult.reply || ""));
 
   if (refused) {
     const lang = resolveResponseLanguage(

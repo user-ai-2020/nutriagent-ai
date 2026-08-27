@@ -20,5 +20,7 @@ describe("classifyIntent scope guardrail", () => {
     assert.equal(classifyIntent("how many calories did I eat today", false), "history_query");
     assert.equal(classifyIntent("what is keto diet", false), "question");
     assert.equal(classifyIntent("what should football players eat", false), "general_chat");
+    assert.equal(classifyIntent("What did I eat yesterday?", false), "history_query");
+    assert.equal(classifyIntent("what should I eat for dinner", false), "general_chat");
   });
 });

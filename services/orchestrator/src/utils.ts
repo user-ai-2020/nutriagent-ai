@@ -108,7 +108,6 @@ export async function callAgentWithTimeout<T>(
  * 1. Vision (meal_analysis): Triggers if an image is attached.
  * 2. Out of scope: obvious non-nutrition / non-health questions — refuse without calling agents.
  * 3. Text2SQL (history_query): Triggers on personal history/logs (e.g. "how many calories did I eat").
- *    Takes precedence over generic factual queries to avoid misrouting personal queries.
  * 4. Question (question): Objective fact-lookup (e.g. "what is keto diet", "how many calories in apple").
  * 5. General Chat (general_chat): Fallback for subjective advice, recommendations, or greetings.
  */
@@ -125,14 +124,18 @@ export function classifyIntent(message: string, hasImage: boolean): ChatIntent {
     lower.includes("שבוע") ||
     lower.includes("אכלתי") ||
     lower.includes("אתמול") ||
-    lower.includes("yesterday") ||
-    lower.includes("today") ||
     lower.includes("вчера") ||
     lower.includes("сегодня") ||
     lower.includes("история") ||
     lower.includes("статистика") ||
     lower.includes("ел ") ||
     lower.includes("ела ") ||
+    lower.includes("what did i eat") ||
+    lower.includes("what have i eaten") ||
+    (lower.includes("yesterday") &&
+      (lower.includes("eat") || lower.includes("ate") || lower.includes("meal") || lower.includes("food") || lower.includes("calor"))) ||
+    (lower.includes("today") &&
+      (lower.includes("eat") || lower.includes("ate") || lower.includes("meal") || lower.includes("calor") || lower.includes("step"))) ||
     (lower.includes("how many") && (lower.includes("i ") || lower.includes("my "))) ||
     (lower.includes("כמה") && lower.includes("אכלתי")) ||
     (lower.includes("сколько") && lower.includes("я")) ||
@@ -152,7 +155,10 @@ export function classifyIntent(message: string, hasImage: boolean): ChatIntent {
     // general chat and got an invented answer instead of the recorded count.
     lower.includes("steps") ||
     lower.includes("шаг") ||
-    lower.includes("צעד")
+    lower.includes("צעד") ||
+    lower.includes("graph") ||
+    lower.includes("chart") ||
+    lower.includes("plot")
   ) {
     return "history_query";
   }

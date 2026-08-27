@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   isClearlyOutOfScope,
+  isNutritionInScopeMessage,
   isScopeRefusalReply,
   normalizeScopeRefusal,
   outOfScopeReply,
@@ -44,6 +45,20 @@ describe("isClearlyOutOfScope", () => {
   it("does not refuse nutrition questions that mention today/history words", () => {
     assert.equal(isClearlyOutOfScope("how many calories did I eat today"), false);
     assert.equal(isClearlyOutOfScope("מה אכלתי אתמול"), false);
+    assert.equal(isClearlyOutOfScope("What did I eat yesterday?"), false);
+  });
+});
+
+describe("isNutritionInScopeMessage", () => {
+  it("always allows meal history and advice questions", () => {
+    assert.equal(isNutritionInScopeMessage("What did I eat yesterday?"), true);
+    assert.equal(isNutritionInScopeMessage("what should I eat for dinner"), true);
+    assert.equal(isNutritionInScopeMessage("explain what to eat after a workout"), true);
+    assert.equal(isNutritionInScopeMessage("show a graph of my calories this week"), true);
+  });
+
+  it("does not allow unrelated trivia", () => {
+    assert.equal(isNutritionInScopeMessage("what is minecraft?"), false);
   });
 });
 

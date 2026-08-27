@@ -8,7 +8,8 @@ import { enTranslations, heTranslations, ruTranslations } from "./locales";
 export function scopeGuardrailInstruction(): string {
   return [
     "SCOPE RULE: You are NutriAgent — nutrition, diet, food, fitness, and wellness only.",
-    "If the topic is unrelated, refuse briefly and suggest a nutrition or health question.",
+    "IN SCOPE: the user's meal history, what to eat, diet advice, calories/macros, steps, and charts of their nutrition data.",
+    "If the topic is clearly unrelated (programming, weather, sports trivia, games, politics), refuse briefly.",
     "Do not diagnose; suggest a professional when appropriate.",
   ].join(" ");
 }
@@ -137,11 +138,42 @@ function messageHasInScopeSignal(text: string): boolean {
   return IN_SCOPE_EN_RE.test(text) || includesAny(text, IN_SCOPE_PHRASES);
 }
 
+/** Personal history, meal advice, and nutrition charts — never refuse these. */
+export function isNutritionInScopeMessage(message: string): boolean {
+  const text = message.trim().toLowerCase();
+  if (text.length < 2) return false;
+  if (messageHasInScopeSignal(text)) return true;
+  if (
+    /\b(did i eat|have i eaten|what did i eat|what have i eaten|my meals|my calories|my steps|meal history|ate yesterday|show my|my data)\b/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\b(yesterday|today|last week)\b/i.test(text) &&
+    /\b(eat|ate|meal|calor|food|step|protein|macro|אכל|ארוח|צעד|קלור)\b/i.test(text)
+  ) {
+    return true;
+  }
+  if (
+    /\b(what should i eat|what to eat|what can i eat|what do i eat|recommend.*(eat|meal|food)|suggest.*(eat|meal|food)|explain.*(eat|diet|meal|nutrition|food))\b/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (/\b(graph|chart|plot|trend)\b/i.test(text) && /\b(calor|meal|protein|step|macro|nutrition|my |i ate|history)\b/i.test(text)) {
+    return true;
+  }
+  return false;
+}
+
 /** True when the message is clearly outside nutrition / health / wellness. */
 export function isClearlyOutOfScope(message: string): boolean {
   const text = message.trim().toLowerCase();
   if (text.length < 2) return false;
-  if (messageHasInScopeSignal(text)) return false;
+  if (isNutritionInScopeMessage(message)) return false;
   if (includesAny(text, OUT_OF_SCOPE_PHRASES) || OUT_OF_SCOPE_EN_RE.test(text)) return true;
   if (isLikelyOffTopicTrivia(text)) return true;
   return false;
@@ -174,6 +206,9 @@ export function normalizeScopeRefusal(
   reply: string,
   lang: ResponseLanguage
 ): { refused: boolean; reply: string } {
+  if (isNutritionInScopeMessage(message)) {
+    return { refused: false, reply };
+  }
   const refused = isClearlyOutOfScope(message) || isScopeRefusalReply(reply);
   return refused ? { refused: true, reply: outOfScopeReply(lang) } : { refused: false, reply };
 }
