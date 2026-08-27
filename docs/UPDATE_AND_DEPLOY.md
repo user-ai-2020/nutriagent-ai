@@ -184,10 +184,7 @@ git add -A && git commit -m "..." && git push
 #    https://github.com/user-ai-2020/nutriagent-ai/actions
 
 # 3. On the VM (via Cloud Shell: gcloud compute ssh nutriagent-prod --zone=me-west1-a)
-cd ~/nutriagent && git pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml down
-docker image prune -a -f    # skip if first deploy; run when disk has been tight
-./deploy.sh
+cd ~/nutriagent && git pull && ./deploy.sh   # deploy.sh prunes old Docker layers automatically
 
 # 4. Verify
 docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
