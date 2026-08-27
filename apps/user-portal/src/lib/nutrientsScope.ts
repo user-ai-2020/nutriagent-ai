@@ -6,6 +6,15 @@ export interface NutritionTotals {
   sugar: number;
 }
 
+/** API meal items may omit sugar; we normalize to 0 when summing. */
+export interface MealItemNutrition {
+  calories: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+  sugar?: number;
+}
+
 export const EMPTY_NUTRITION_TOTALS: NutritionTotals = {
   calories: 0,
   protein: 0,
@@ -39,7 +48,7 @@ export function resolveActiveMealId(
 }
 
 export function sumMealNutrition(
-  items: Array<{ nutritionValues?: NutritionTotals | null }> | undefined
+  items: Array<{ nutritionValues?: MealItemNutrition | null }> | undefined
 ): NutritionTotals {
   if (!items?.length) return { ...EMPTY_NUTRITION_TOTALS };
   return items.reduce<NutritionTotals>((acc, item) => {
