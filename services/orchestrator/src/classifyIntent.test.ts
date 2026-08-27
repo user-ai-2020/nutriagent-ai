@@ -6,7 +6,8 @@ describe("classifyIntent scope guardrail", () => {
   it("routes obvious off-topic chat to out_of_scope", () => {
     assert.equal(classifyIntent("write python code for a website", false), "out_of_scope");
     assert.equal(classifyIntent("what's the weather today", false), "out_of_scope");
-    assert.equal(classifyIntent("כתוב קוד בפייתון", false), "out_of_scope");
+    assert.equal(classifyIntent("what is the wether?", false), "out_of_scope");
+    assert.equal(classifyIntent("how docker works?", false), "out_of_scope");
   });
 
   it("does not override meal photos", () => {

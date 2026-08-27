@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   isClearlyOutOfScope,
+  isScopeRefusalReply,
   outOfScopeReply,
   scopeGuardrailInstruction,
 } from "./scopeGuardrail.js";
@@ -25,6 +26,8 @@ describe("isClearlyOutOfScope", () => {
     assert.equal(isClearlyOutOfScope("напиши код на python"), true);
     assert.equal(isClearlyOutOfScope("какая погода завтра"), true);
     assert.equal(isClearlyOutOfScope("should I buy bitcoin"), true);
+    assert.equal(isClearlyOutOfScope("what is the wether?"), true);
+    assert.equal(isClearlyOutOfScope("how docker works?"), true);
   });
 
   it("does not refuse nutrition questions that mention today/history words", () => {
@@ -39,6 +42,30 @@ describe("scopeGuardrailInstruction", () => {
     assert.match(text, /ONLY answer/i);
     assert.match(text, /politely refuse/i);
     assert.match(text, /nutrition/i);
+  });
+});
+
+describe("isScopeRefusalReply", () => {
+  it("detects a polite off-topic refusal", () => {
+    assert.equal(
+      isScopeRefusalReply(
+        "I'm sorry, but I can't provide information about the weather. If you have questions about meals, nutrition, or health, feel free to ask!"
+      ),
+      true
+    );
+    assert.equal(
+      isScopeRefusalReply("I'm here to assist with nutrition and wellness questions. Feel free to ask!"),
+      true
+    );
+  });
+
+  it("does not flag a normal nutrition answer", () => {
+    assert.equal(
+      isScopeRefusalReply(
+        "Chicken breast has about 31g of protein per 100g. Pair it with vegetables for a balanced meal."
+      ),
+      false
+    );
   });
 });
 

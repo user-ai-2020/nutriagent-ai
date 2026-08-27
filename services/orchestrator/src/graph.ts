@@ -13,6 +13,8 @@ import {
   resolveResponseLanguage,
   responseLanguageInstruction,
   scopeGuardrailInstruction,
+  isClearlyOutOfScope,
+  isScopeRefusalReply,
 } from "@nutriagent/shared";
 import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
 import pg from "pg";
@@ -244,13 +246,16 @@ ${responseLanguageInstruction(lang)}`;
     ],
   });
 
+  const refused =
+    isClearlyOutOfScope(state.request.message) || isScopeRefusalReply(reply || "");
+
   // Post-generation claim verification: prompt-level + pattern-matching check
   // This catches "no citations at all" for substantive answers, but does NOT do deep semantic fact-checking
-  // (i.e. it doesn't catch "cited but subtly wrong").
+  // (i.e. it doesn't catch "cited but subtly wrong"). Skip for scope refusals — they are not claims.
   const isSubstantive = reply && reply.length > 100;
   const hasCitations = reply && reply.includes("[");
 
-  if (isSubstantive && !hasCitations) {
+  if (!refused && isSubstantive && !hasCitations) {
     const retryPrompt = "Your previous answer did not include inline citations. Rewrite it, citing the specific source for each factual claim, or state that you don't have enough information.";
     reply = await openRouterChat({
       apiKey: settings.openRouterApiKey,
@@ -269,16 +274,19 @@ ${responseLanguageInstruction(lang)}`;
   }
 
   const response: OrchestratorResponse = {
-    intent: state.intent,
+    intent: refused ? "out_of_scope" : state.intent,
     reply: reply || "I could not generate an answer.",
-    sources: uniqueCitationSources(state.sources),
-    agentPath: state.agentPath.concat(["RAG Generator"]),
+    sources: refused ? [] : uniqueCitationSources(state.sources),
+    agentPath: state.agentPath.concat([refused ? "Scope Guardrail" : "RAG Generator"]),
   };
 
-  return { response, agentPath: ["RAG Generator"] };
+  return { response, agentPath: [refused ? "Scope Guardrail" : "RAG Generator"] };
 }
 
 async function questionCacheSaveNode(state: typeof OrchestratorState.State) {
+  if (state.response?.intent === "out_of_scope" || isScopeRefusalReply(state.response?.reply || "")) {
+    return {};
+  }
   if (state.questionEmbedding && state.response?.reply) {
     // Use safer-by-default scoping: only cache globally (userId=null) when the
     // question clearly matches an objective-fact pattern. See isObjectiveFact()
@@ -690,6 +698,19 @@ async function nutritionAdviseNode(state: typeof OrchestratorState.State) {
     CHAT_AGENT_TIMEOUT_MS
   );
   
+  const refused =
+    isClearlyOutOfScope(state.request.message) || isScopeRefusalReply(adviceResult.reply || "");
+
+  if (refused) {
+    const response: OrchestratorResponse = {
+      intent: "out_of_scope",
+      reply: adviceResult.reply,
+      sources: [],
+      agentPath: state.agentPath.concat(["Scope Guardrail"]),
+    };
+    return { response, agentPath: ["Scope Guardrail"], sources: [] };
+  }
+
   // Only cite the clinical graph when it actually contributed — it may have been
   // unreachable, and citing a source that fed nothing into the answer is misleading.
   const sourcesUpdate = state.graphRecommendations?.length

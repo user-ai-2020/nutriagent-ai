@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { UserProfileData, VisionFoodItem, isClearlyOutOfScope, outOfScopeReply, openRouterChat, parseQuantityGrams, resolveResponseLanguage, responseLanguageInstruction, scopeGuardrailInstruction, CITATION_SOURCES } from "@nutriagent/shared";
+import { UserProfileData, VisionFoodItem, isClearlyOutOfScope, isScopeRefusalReply, outOfScopeReply, openRouterChat, parseQuantityGrams, resolveResponseLanguage, responseLanguageInstruction, scopeGuardrailInstruction, CITATION_SOURCES } from "@nutriagent/shared";
 import { getCachedLlmSettings } from "@nutriagent/db";
 import { findNutrition } from "./nutrition-db";
 import { isSuspiciousMealTotal, isSuspiciousNutrition, kcalPer100g } from "./nutrition-sanity";
@@ -176,12 +176,14 @@ nutritionRouter.post("/advise", async (req, res) => {
     reply = generateMockAdvice(message, profile, context);
   }
 
-  const adviseSources: string[] = [
-    CITATION_SOURCES.USER_PROFILE,
-    CITATION_SOURCES.RAG_KB,
-    CITATION_SOURCES.DRI_WHO,
-    CITATION_SOURCES.ISRAEL_FOOD_UNION,
-  ];
+  const adviseSources: string[] = isScopeRefusalReply(reply)
+    ? []
+    : [
+        CITATION_SOURCES.USER_PROFILE,
+        CITATION_SOURCES.RAG_KB,
+        CITATION_SOURCES.DRI_WHO,
+        CITATION_SOURCES.ISRAEL_FOOD_UNION,
+      ];
 
   res.json({
     reply,

@@ -120,7 +120,7 @@ const OUT_OF_SCOPE_PHRASES = [
 ];
 
 const OUT_OF_SCOPE_EN_RE =
-  /\b(javascript|typescript|leetcode|bitcoin|cryptocurrency|nasdaq|netflix|election|president|programming|coding)\b/i;
+  /\b(javascript|typescript|leetcode|bitcoin|cryptocurrency|nasdaq|netflix|election|president|programming|coding|docker|kubernetes|linux|weather|wether|wheather|forecast|forcast)\b/i;
 
 function includesAny(haystack: string, needles: readonly string[]): boolean {
   return needles.some((n) => haystack.includes(n));
@@ -143,4 +143,15 @@ export function outOfScopeReply(lang: ResponseLanguage): string {
     return "Я помощник NutriAgent по питанию и здоровью и отвечаю только на вопросы о еде, диете, калориях, фитнесе и самочувствии. Спросите про питание или здоровье — на другие темы я ответить не могу.";
   }
   return "I'm NutriAgent's nutrition and health assistant, so I can only help with food, diet, meals, fitness, and wellness. Ask me about nutrition or health — I can't answer unrelated topics.";
+}
+
+/** True when the model already refused as out-of-scope (heuristic missed the question). */
+export function isScopeRefusalReply(reply: string): boolean {
+  const text = reply.trim();
+  if (text.length < 20 || text.length > 600) return false;
+  return (
+    /can't provide information about|cannot (answer|help with) (that|unrelated)|only (answer|help with).{0,60}(nutrition|meals|health|wellness)|nutrition and wellness questions|unrelated topics|outside (of )?(nutrition|my (scope|expertise))|i'm sorry, but i can't|i am sorry, but i can't|i'm here to assist with nutrition|feel free to ask!|לא אוכל לענות על נושאים|רק בנושאים כמו תזונה|на другие темы|только на вопросы о (еде|питании)/i.test(
+      text
+    )
+  );
 }
