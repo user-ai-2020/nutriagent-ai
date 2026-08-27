@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "@/lib/api";
 import { muted, serif } from "@/lib/ui";
 import { Segmented } from "@/components/Segmented";
 import { toDateKey, useDashboard, useMeal } from "@/hooks/queries";
+import {
+  dashboardHasLoggedMeals,
+  resolveActiveMealId,
+  sumMealNutrition,
+} from "@/lib/nutrientsScope";
 
 interface Totals {
   calories: number;
@@ -23,15 +27,9 @@ interface Dash {
   dailyBreakdown: Array<{ date: string; calories: number; protein: number; fat: number; carbs: number }>;
 }
 
-interface Meal {
-  mealId: number;
-  items: Array<{ nutritionValues?: Totals | null }>;
-}
-
 type Scope = "meal" | "day" | "period";
 
 const DOW = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-const EMPTY: Totals = { calories: 0, protein: 0, fat: 0, carbs: 0, sugar: 0 };
 const GOAL_FAT = 70;
 const GOAL_CARBS = 250;
 
@@ -155,7 +153,6 @@ export default function NutrientsPage() {
     { value: "period" as const, label: t("nutrients.scopePeriod") },
   ];
   const [scope, setScope] = useState<Scope>("day");
-  const [mealTotals, setMealTotals] = useState<Totals>(EMPTY);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedMealId, setSelectedMealId] = useState<number | null>(null);
 
@@ -166,8 +163,13 @@ export default function NutrientsPage() {
 
   // useDashboard takes (dateKey, period) — passing "week" alone sent it as the
   // date and the API answered 400 "Invalid date; use YYYY-MM-DD".
-  const { data, error, isFetching } = useDashboard(toDateKey(), "week");
-  const { data: mealData } = useMeal(selectedMealId);
+  const { data, error } = useDashboard(toDateKey(), "week");
+  const activeMealId = useMemo(
+    () => resolveActiveMealId(selectedMealId, data),
+    [selectedMealId, data]
+  );
+  const { data: mealData } = useMeal(activeMealId);
+  const mealTotals = useMemo(() => sumMealNutrition(mealData?.items), [mealData]);
 
   useEffect(() => {
     if (error) {
@@ -177,30 +179,15 @@ export default function NutrientsPage() {
     }
   }, [error, t]);
 
+  // Drop a stale selectedMealId when the dashboard period has no logged meals.
   useEffect(() => {
-    if (data && selectedMealId) {
-      const todayEmpty = data.todayTotals.calories === 0 && (data.mealCount ?? 0) === 0;
-      if (todayEmpty) setScope("meal");
+    if (!data || dashboardHasLoggedMeals(data)) return;
+    if (selectedMealId !== null) {
+      localStorage.removeItem("selectedMealId");
+      setSelectedMealId(null);
     }
-  }, [data, selectedMealId]);
-
-  useEffect(() => {
-    if (mealData) {
-      setMealTotals(
-        (mealData.items.reduce as any)((acc: Totals, item: any) => {
-          const n = item.nutritionValues;
-          if (!n) return acc;
-          return {
-            calories: acc.calories + n.calories,
-            protein: acc.protein + n.protein,
-            fat: acc.fat + n.fat,
-            carbs: acc.carbs + n.carbs,
-            sugar: acc.sugar + n.sugar,
-          };
-        }, EMPTY)
-      );
-    }
-  }, [mealData]);
+    if (scope === "meal") setScope("day");
+  }, [data, selectedMealId, scope]);
 
   if (loadError) {
     return (
