@@ -8,6 +8,8 @@ describe("classifyIntent scope guardrail", () => {
     assert.equal(classifyIntent("what's the weather today", false), "out_of_scope");
     assert.equal(classifyIntent("what is the wether?", false), "out_of_scope");
     assert.equal(classifyIntent("how docker works?", false), "out_of_scope");
+    assert.equal(classifyIntent("what is football?", false), "out_of_scope");
+    assert.equal(classifyIntent("what is minecraft?", false), "out_of_scope");
   });
 
   it("does not override meal photos", () => {
@@ -17,6 +19,6 @@ describe("classifyIntent scope guardrail", () => {
   it("keeps nutrition questions on existing paths", () => {
     assert.equal(classifyIntent("how many calories did I eat today", false), "history_query");
     assert.equal(classifyIntent("what is keto diet", false), "question");
-    assert.equal(classifyIntent("what should I eat now", false), "general_chat");
+    assert.equal(classifyIntent("what should football players eat", false), "general_chat");
   });
 });

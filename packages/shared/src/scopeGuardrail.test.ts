@@ -3,9 +3,11 @@ import { describe, it } from "node:test";
 import {
   isClearlyOutOfScope,
   isScopeRefusalReply,
+  normalizeScopeRefusal,
   outOfScopeReply,
   scopeGuardrailInstruction,
 } from "./scopeGuardrail.js";
+import { enTranslations } from "./locales/en.js";
 
 describe("isClearlyOutOfScope", () => {
   it("keeps nutrition and health questions in scope", () => {
@@ -28,6 +30,15 @@ describe("isClearlyOutOfScope", () => {
     assert.equal(isClearlyOutOfScope("should I buy bitcoin"), true);
     assert.equal(isClearlyOutOfScope("what is the wether?"), true);
     assert.equal(isClearlyOutOfScope("how docker works?"), true);
+    assert.equal(isClearlyOutOfScope("what is football?"), true);
+    assert.equal(isClearlyOutOfScope("what is minecraft?"), true);
+    assert.equal(isClearlyOutOfScope("tell me about fortnite"), true);
+  });
+
+  it("does not refuse nutrition trivia questions", () => {
+    assert.equal(isClearlyOutOfScope("what is a keto diet"), false);
+    assert.equal(isClearlyOutOfScope("what is diabetes"), false);
+    assert.equal(isClearlyOutOfScope("what should football players eat"), false);
   });
 
   it("does not refuse nutrition questions that mention today/history words", () => {
@@ -39,9 +50,8 @@ describe("isClearlyOutOfScope", () => {
 describe("scopeGuardrailInstruction", () => {
   it("states nutrition-only scope and a refuse rule", () => {
     const text = scopeGuardrailInstruction();
-    assert.match(text, /ONLY answer/i);
-    assert.match(text, /politely refuse/i);
-    assert.match(text, /nutrition/i);
+    assert.match(text, /nutrition, diet, food/i);
+    assert.match(text, /refuse/i);
   });
 });
 
@@ -70,9 +80,21 @@ describe("isScopeRefusalReply", () => {
 });
 
 describe("outOfScopeReply", () => {
-  it("returns localized refusals", () => {
-    assert.match(outOfScopeReply("en"), /nutrition and health/i);
+  it("returns the zero-token staple from locales", () => {
+    assert.equal(outOfScopeReply("en"), enTranslations.chat.outOfScopeRefusal);
     assert.match(outOfScopeReply("he"), /תזונה/);
     assert.match(outOfScopeReply("ru"), /питани/);
+  });
+});
+
+describe("normalizeScopeRefusal", () => {
+  it("replaces model refusals with the staple", () => {
+    const { refused, reply } = normalizeScopeRefusal(
+      "what is football?",
+      "I'm sorry, but I can't provide information about football. Ask about nutrition!",
+      "en"
+    );
+    assert.equal(refused, true);
+    assert.equal(reply, outOfScopeReply("en"));
   });
 });

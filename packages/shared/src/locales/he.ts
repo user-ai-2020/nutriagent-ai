@@ -124,6 +124,8 @@ export const heTranslations = {
     mealPhotoAlt: "תמונת הארוחה",
     matchPercent: "{{pct}}% התאמה",
     somethingWrong: "משהו השתבש.",
+    outOfScopeRefusal:
+      "אני עוזר תזונה ובריאות של NutriAgent — אני עוזר רק בנושאי אוכל, דיאטה, ארוחות, כושר ורווחה. שאלו אותי על תזונה או בריאות.",
     visionModelComparison: "השוואת מודלי ראייה",
     mockVisionWarning:
       "נתוני דוגמה — הסריקה לא השתמשה בראייה חיה (מפתח חסר או שגיאת מודל). התוצאות עלולות שלא להתאים לתמונה.",

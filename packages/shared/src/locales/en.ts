@@ -127,6 +127,8 @@ export const enTranslations = {
     mealPhotoAlt: "Meal photo",
     matchPercent: "{{pct}}% match",
     somethingWrong: "Something went wrong.",
+    outOfScopeRefusal:
+      "I'm NutriAgent's nutrition and health assistant — I only help with food, diet, meals, fitness, and wellness. Ask me about nutrition or health.",
     visionModelComparison: "Vision model comparison",
     mockVisionWarning:
       "Sample data — this scan did not use live vision (missing key or model error). Results may not match your photo.",

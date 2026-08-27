@@ -176,7 +176,12 @@ nutritionRouter.post("/advise", async (req, res) => {
     reply = generateMockAdvice(message, profile, context);
   }
 
-  const adviseSources: string[] = isScopeRefusalReply(reply)
+  const refused = isClearlyOutOfScope(message) || isScopeRefusalReply(reply);
+  if (refused) {
+    reply = outOfScopeReply(lang);
+  }
+
+  const adviseSources: string[] = refused
     ? []
     : [
         CITATION_SOURCES.USER_PROFILE,

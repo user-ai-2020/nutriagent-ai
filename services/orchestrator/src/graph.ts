@@ -15,6 +15,7 @@ import {
   scopeGuardrailInstruction,
   isClearlyOutOfScope,
   isScopeRefusalReply,
+  normalizeScopeRefusal,
 } from "@nutriagent/shared";
 import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
 import pg from "pg";
@@ -237,6 +238,16 @@ ${responseLanguageInstruction(lang)}`;
 
   const userPrompt = `Context:\n${contextText}\n\nQuestion: ${state.request.message}`;
 
+  if (isClearlyOutOfScope(state.request.message)) {
+    const response: OrchestratorResponse = {
+      intent: "out_of_scope",
+      reply: outOfScopeReply(lang),
+      sources: [],
+      agentPath: state.agentPath.concat(["Scope Guardrail"]),
+    };
+    return { response, agentPath: ["Scope Guardrail"] };
+  }
+
   let reply = await openRouterChat({
     apiKey: settings.openRouterApiKey,
     model: settings.ragModel || "openai/gpt-4o",
@@ -246,10 +257,11 @@ ${responseLanguageInstruction(lang)}`;
     ],
   });
 
-  const refused =
-    isClearlyOutOfScope(state.request.message) || isScopeRefusalReply(reply || "");
+  const scope = normalizeScopeRefusal(state.request.message, reply || "", lang);
+  reply = scope.reply;
+  const refused = scope.refused;
 
-  // Post-generation claim verification: prompt-level + pattern-matching check
+  // Post-generation claim verification
   // This catches "no citations at all" for substantive answers, but does NOT do deep semantic fact-checking
   // (i.e. it doesn't catch "cited but subtly wrong"). Skip for scope refusals — they are not claims.
   const isSubstantive = reply && reply.length > 100;
@@ -702,9 +714,13 @@ async function nutritionAdviseNode(state: typeof OrchestratorState.State) {
     isClearlyOutOfScope(state.request.message) || isScopeRefusalReply(adviceResult.reply || "");
 
   if (refused) {
+    const lang = resolveResponseLanguage(
+      state.request.message,
+      state.request.profile?.preferredLanguage ?? null
+    );
     const response: OrchestratorResponse = {
       intent: "out_of_scope",
-      reply: adviceResult.reply,
+      reply: outOfScopeReply(lang),
       sources: [],
       agentPath: state.agentPath.concat(["Scope Guardrail"]),
     };
