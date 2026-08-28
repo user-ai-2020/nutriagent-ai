@@ -1,4 +1,5 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@nutriagent/db";
@@ -7,6 +8,20 @@ import { writeAuditLog } from "../lib/audit";
 import { authMiddleware, AuthRequest } from "../middleware/auth";
 
 export const authRouter = Router();
+
+/**
+ * Credential endpoints need a much tighter budget than the global 300-per-15min
+ * limiter, which allowed 300 password guesses per IP per window. Counts only
+ * failed attempts so a legitimate user who logs in repeatedly is not locked out.
+ */
+const credentialsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.AUTH_RATE_LIMIT_MAX || 10),
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: "Too many attempts. Please try again later." },
+});
 
 const registerSchema = z.object({
   name: z.string().min(2),
@@ -19,7 +34,7 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-authRouter.post("/register", async (req, res, next) => {
+authRouter.post("/register", credentialsLimiter, async (req, res, next) => {
   try {
     const body = registerSchema.parse(req.body);
     const existing = await prisma.user.findUnique({ where: { email: body.email } });
@@ -72,7 +87,7 @@ authRouter.post("/register", async (req, res, next) => {
   }
 });
 
-authRouter.post("/login", async (req, res, next) => {
+authRouter.post("/login", credentialsLimiter, async (req, res, next) => {
   try {
     const body = loginSchema.parse(req.body);
     const user = await prisma.user.findUnique({

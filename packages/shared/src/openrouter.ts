@@ -12,6 +12,37 @@ export function getOpenRouterModel(fallback = "openai/gpt-4o"): string {
 
 export const OPENROUTER_RERANK_MODEL = process.env.OPENROUTER_RERANK_MODEL || "cohere/rerank-4-fast";
 
+/**
+ * Wall-clock cap for a single OpenRouter HTTP call.
+ *
+ * Every call here used bare `fetch` with no signal, so a hung OpenRouter socket
+ * blocked the calling agent indefinitely. That defeats every timeout above it:
+ * the orchestrator aborts its own request to the agent after
+ * CHAT_AGENT_TIMEOUT_MS, but the agent process keeps the upstream socket open,
+ * so retries stack sockets on a provider that is already not answering.
+ * AGENTS.md rule 3 ("no unbounded external calls may block the UI") is exactly
+ * this case. Keep the default below the orchestrator's per-agent budget.
+ */
+export const OPENROUTER_TIMEOUT_MS = Number(process.env.OPENROUTER_TIMEOUT_MS || 12_000);
+
+/** Longer cap for vision/rerank calls, which legitimately take more time. */
+export const OPENROUTER_VISION_TIMEOUT_MS = Number(
+  process.env.OPENROUTER_VISION_TIMEOUT_MS || 30_000
+);
+
+function openRouterSignal(timeoutMs: number): AbortSignal {
+  return AbortSignal.timeout(timeoutMs);
+}
+
+/** Turns an aborted OpenRouter fetch into a message a user can act on. */
+function rethrowOpenRouterFetchError(err: unknown, timeoutMs: number): never {
+  const name = err instanceof Error ? err.name : "";
+  if (name === "TimeoutError" || name === "AbortError") {
+    throw new Error(`OpenRouter did not respond within ${timeoutMs}ms — try again in a moment.`);
+  }
+  throw err;
+}
+
 /** Parse OpenRouter / API errors into short user-facing messages */
 export function friendlyOpenRouterError(raw: string): string {
   const trimmed = raw.replace(/^OpenRouter error:\s*/i, "").trim();
@@ -75,21 +106,28 @@ export async function openRouterRerank(params: {
   const apiKey = params.apiKey || getOpenRouterKey();
   if (!apiKey || params.documents.length === 0) return [];
 
-  const response = await fetch(`${OPENROUTER_BASE_URL}/rerank`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": process.env.OPENROUTER_APP_URL || "http://localhost:3000",
-      "X-Title": process.env.OPENROUTER_APP_NAME || "NutriAgent AI",
-    },
-    body: JSON.stringify({
-      model: params.model || OPENROUTER_RERANK_MODEL,
-      query: params.query,
-      documents: params.documents,
-      top_n: params.topN ?? params.documents.length,
-    }),
-  });
+  const timeoutMs = OPENROUTER_VISION_TIMEOUT_MS;
+  let response: Response;
+  try {
+    response = await fetch(`${OPENROUTER_BASE_URL}/rerank`, {
+      signal: openRouterSignal(timeoutMs),
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.OPENROUTER_APP_URL || "http://localhost:3000",
+        "X-Title": process.env.OPENROUTER_APP_NAME || "NutriAgent AI",
+      },
+      body: JSON.stringify({
+        model: params.model || OPENROUTER_RERANK_MODEL,
+        query: params.query,
+        documents: params.documents,
+        top_n: params.topN ?? params.documents.length,
+      }),
+    });
+  } catch (err) {
+    rethrowOpenRouterFetchError(err, timeoutMs);
+  }
 
   if (!response.ok) {
     const error = await response.text();
@@ -109,20 +147,30 @@ export async function openRouterChat(params: {
   const apiKey = params.apiKey || getOpenRouterKey();
   if (!apiKey) return null;
 
-  const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": process.env.OPENROUTER_APP_URL || "http://localhost:3000",
-      "X-Title": process.env.OPENROUTER_APP_NAME || "NutriAgent AI",
-    },
-    body: JSON.stringify({
-      model: params.model || getOpenRouterModel(),
-      messages: params.messages,
-      max_tokens: params.maxTokens ?? 500,
-    }),
-  });
+  // Vision prompts arrive here too (image parts in `messages`), so use the
+  // longer cap when the payload carries an image.
+  const hasImage = JSON.stringify(params.messages ?? []).includes("image_url");
+  const timeoutMs = hasImage ? OPENROUTER_VISION_TIMEOUT_MS : OPENROUTER_TIMEOUT_MS;
+  let response: Response;
+  try {
+    response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+      signal: openRouterSignal(timeoutMs),
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.OPENROUTER_APP_URL || "http://localhost:3000",
+        "X-Title": process.env.OPENROUTER_APP_NAME || "NutriAgent AI",
+      },
+      body: JSON.stringify({
+        model: params.model || getOpenRouterModel(),
+        messages: params.messages,
+        max_tokens: params.maxTokens ?? 500,
+      }),
+    });
+  } catch (err) {
+    rethrowOpenRouterFetchError(err, timeoutMs);
+  }
 
   if (!response.ok) {
     const error = await response.text();
@@ -152,16 +200,23 @@ export async function openRouterEmbed(params: {
     body.dimensions = dimensions;
   }
 
-  const response = await fetch(`${OPENROUTER_BASE_URL}/embeddings`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": process.env.OPENROUTER_APP_URL || "http://localhost:3000",
-      "X-Title": process.env.OPENROUTER_APP_NAME || "NutriAgent AI",
-    },
-    body: JSON.stringify(body),
-  });
+  const timeoutMs = OPENROUTER_TIMEOUT_MS;
+  let response: Response;
+  try {
+    response = await fetch(`${OPENROUTER_BASE_URL}/embeddings`, {
+      signal: openRouterSignal(timeoutMs),
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.OPENROUTER_APP_URL || "http://localhost:3000",
+        "X-Title": process.env.OPENROUTER_APP_NAME || "NutriAgent AI",
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    rethrowOpenRouterFetchError(err, timeoutMs);
+  }
 
   if (!response.ok) {
     const error = await response.text();
@@ -192,13 +247,20 @@ export interface OpenRouterKeyBalance {
 
 /** Live credit info from OpenRouter — admin-only; never return the raw key. */
 export async function fetchOpenRouterKeyBalance(apiKey: string): Promise<OpenRouterKeyBalance> {
-  const response = await fetch(`${OPENROUTER_BASE_URL}/auth/key`, {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "HTTP-Referer": process.env.OPENROUTER_APP_URL || "http://localhost:3000",
-      "X-Title": process.env.OPENROUTER_APP_NAME || "NutriAgent AI",
-    },
-  });
+  const timeoutMs = OPENROUTER_TIMEOUT_MS;
+  let response: Response;
+  try {
+    response = await fetch(`${OPENROUTER_BASE_URL}/auth/key`, {
+      signal: openRouterSignal(timeoutMs),
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": process.env.OPENROUTER_APP_URL || "http://localhost:3000",
+        "X-Title": process.env.OPENROUTER_APP_NAME || "NutriAgent AI",
+      },
+    });
+  } catch (err) {
+    rethrowOpenRouterFetchError(err, timeoutMs);
+  }
 
   if (!response.ok) {
     const error = await response.text();

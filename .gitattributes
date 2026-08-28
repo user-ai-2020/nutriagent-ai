@@ -1,0 +1,29 @@
+# Normalise line endings in the repository to LF.
+#
+# Without this the working tree on Windows drifted to CRLF while git's index kept
+# LF, so `git status` permanently reported ~32 files as modified even with no real
+# change. That is not cosmetic: it hides genuine edits in the noise, and it makes
+# it easy to commit 1,700 lines of pure line-ending churn by accident. Worse, five
+# service Dockerfiles had picked up CRLF, and a `\`-continued RUN line ending in
+# CR is a build failure waiting to happen in a Linux container.
+#
+# Editors on Windows all handle LF fine; the .sh/.mjs entries below are the ones
+# that MUST be LF, because a CRLF shebang line fails on Linux with
+# "bad interpreter: /bin/bash^M".
+* text=auto eol=lf
+
+*.sh        text eol=lf
+*.mjs       text eol=lf
+Dockerfile  text eol=lf
+*.bat       text eol=crlf
+*.ps1       text eol=crlf
+
+# Never touch binaries.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.gz  binary
+*.pdf binary

@@ -39,9 +39,15 @@ app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS ?? 1));
 
 app.use(
   cors({
+    // Trim each entry: a natural `CORS_ORIGIN="http://a, http://b"` in a .env
+    // file produced " http://b" with a leading space, which never matches an
+    // Origin header, so the second portal silently failed CORS in production.
     origin: (
       process.env.CORS_ORIGIN || "http://localhost:3007,http://localhost:3008,http://localhost:8081"
-    ).split(","),
+    )
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean),
     credentials: true,
   })
 );

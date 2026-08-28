@@ -58,6 +58,17 @@ export function rerankerPanelLabel(visionResult: VisionAnalyzeResponse): string 
   }
 }
 
+/**
+ * Total budget across ALL attempts, as a multiple of the per-attempt timeout.
+ *
+ * With maxRetries = 2 and timeoutMs = 15s the old loop could burn
+ * 15 + 1 + 15 + 2 + 15 = 48s before throwing — more than three times the budget
+ * the caller asked for, and well past the frontend's patience. AGENTS.md rule 3
+ * requires agent latency to stay under the frontend timeout, so the retries now
+ * share one deadline instead of each getting a fresh one.
+ */
+const AGENT_TOTAL_BUDGET_FACTOR = Number(process.env.AGENT_TOTAL_BUDGET_FACTOR || 2);
+
 export async function callAgentWithTimeout<T>(
   url: string,
   body: unknown,
@@ -65,9 +76,17 @@ export async function callAgentWithTimeout<T>(
   maxRetries = 2
 ): Promise<T> {
   let attempt = 0;
+  const deadline = Date.now() + timeoutMs * AGENT_TOTAL_BUDGET_FACTOR;
   while (true) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      throw new Error(
+        `${url}: exhausted ${timeoutMs * AGENT_TOTAL_BUDGET_FACTOR}ms total budget after ${attempt} attempt(s)`
+      );
+    }
+    const attemptTimeout = Math.min(timeoutMs, remaining);
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), attemptTimeout);
     let res: Response | undefined;
     try {
       res = await fetch(url, {
@@ -85,16 +104,19 @@ export async function callAgentWithTimeout<T>(
       const is5xx = res && res.status >= 500 && res.status < 600;
       const isNetworkError = !res && !isTimeout;
       
-      if (attempt < maxRetries && (isTimeout || is5xx || isNetworkError)) {
+      const budgetLeft = deadline - Date.now();
+      if (attempt < maxRetries && budgetLeft > 0 && (isTimeout || is5xx || isNetworkError)) {
         attempt++;
-        const backoff = Math.pow(2, attempt) * 500;
+        // Never sleep past the deadline — a backoff that outlives the budget just
+        // delays the inevitable error while the caller waits.
+        const backoff = Math.min(Math.pow(2, attempt) * 500, Math.max(budgetLeft - 100, 0));
         console.warn(`[Retry ${attempt}/${maxRetries}] ${url} failed. Retrying in ${backoff}ms...`);
         await new Promise((resolve) => setTimeout(resolve, backoff));
         continue;
       }
-      
+
       if (isTimeout) {
-        throw new Error(`${url}: timed out after ${timeoutMs}ms (attempted ${attempt + 1} times)`);
+        throw new Error(`${url}: timed out after ${attemptTimeout}ms (attempted ${attempt + 1} times)`);
       }
       throw err;
     } finally {
@@ -111,6 +133,31 @@ export async function callAgentWithTimeout<T>(
  * 4. Question (question): Objective fact-lookup (e.g. "what is keto diet", "how many calories in apple").
  * 5. General Chat (general_chat): Fallback for subjective advice, recommendations, or greetings.
  */
+/**
+ * Does this message refer to the user's OWN logged data?
+ *
+ * Used to gate the broad range/aggregate words below. "between", "from " and
+ * "average" are common English connectives, not history markers: "what is the
+ * difference between keto and paleo", "which vitamins come from carrots" and
+ * "what is the average calorie need for adults" are all general questions, but
+ * each matched the bare substring and was sent to Text2SQL, which then tried to
+ * answer a nutrition-science question out of the user's meals table.
+ */
+function mentionsOwnData(lower: string): boolean {
+  return (
+    /\b(i|me|my|mine)\b/.test(lower) ||
+    lower.includes("אני") ||
+    lower.includes("שלי") ||
+    lower.includes("אכלתי") ||
+    lower.includes("моих") ||
+    lower.includes("мои") ||
+    lower.includes(" я ") ||
+    lower.startsWith("я ") ||
+    lower.includes("ел ") ||
+    lower.includes("ела ")
+  );
+}
+
 export function classifyIntent(message: string, hasImage: boolean): ChatIntent {
   const lower = message.toLowerCase();
   if (hasImage) return "meal_analysis"; // 1. Vision
@@ -119,7 +166,7 @@ export function classifyIntent(message: string, hasImage: boolean): ChatIntent {
   // 2. Text2SQL (History query - checking personal logs)
   if (
     lower.includes("history") ||
-    lower.includes("average") ||
+    (lower.includes("average") && mentionsOwnData(lower)) ||
     lower.includes("היום") ||
     lower.includes("שבוע") ||
     lower.includes("אכלתי") ||
@@ -148,8 +195,10 @@ export function classifyIntent(message: string, hasImage: boolean): ChatIntent {
     lower.includes("האם אכלתי") ||
     lower.includes("я ел что-то") ||
     lower.includes("я ела что-то") ||
-    lower.includes("between") ||
-    lower.includes("from ") ||
+    // Range connectives only count as a history query when the message is about
+    // the user's own data — see mentionsOwnData() above.
+    (lower.includes("between") && mentionsOwnData(lower)) ||
+    (lower.includes("from ") && mentionsOwnData(lower)) ||
     // Steps are personal log data, so they belong on the Text2SQL path. Without
     // these, a bare "Сколько шагов?" (no period word to match on) fell through to
     // general chat and got an invented answer instead of the recorded count.

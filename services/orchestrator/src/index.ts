@@ -26,11 +26,14 @@ app.post("/process", async (req, res) => {
     if (config) {
       const state = await orchestratorGraph.getState(config);
       if (state.next && state.next.length > 0 && state.tasks && state.tasks.length > 0 && state.tasks[0].interrupts && state.tasks[0].interrupts.length > 0) {
+        // Only the question and the thread id are needed to resume. The full
+        // `state` was being serialised into every clarification response, and it
+        // carries state.values.request.imageBase64 — the entire uploaded photo,
+        // re-encoded and shipped back on the wire, plus the user's health profile.
         return res.json({
           __interrupt__: true,
           interruptValue: state.tasks[0].interrupts[0].value,
           threadId,
-          state,
         });
       }
     }
@@ -61,11 +64,11 @@ app.post("/resume", async (req, res) => {
     // second clarification round can resume the same thread.
     const state = await orchestratorGraph.getState(config);
     if (state.next && state.next.length > 0 && state.tasks && state.tasks.length > 0 && state.tasks[0].interrupts && state.tasks[0].interrupts.length > 0) {
+      // See /process above — never echo the full graph state back to the caller.
       return res.json({
         __interrupt__: true,
         interruptValue: state.tasks[0].interrupts[0].value,
         threadId,
-        state,
       });
     }
 

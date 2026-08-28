@@ -4,6 +4,22 @@ const API_PROXY_TARGET = (process.env.API_PROXY_TARGET || "http://127.0.0.1:3000
 
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
+/**
+ * Nothing ever removed entries from rateLimitMap, so every distinct client IP
+ * that ever hit the proxy stayed resident for the life of the Next server — a
+ * slow, unbounded memory leak on any deployment facing more than a handful of
+ * addresses. Sweep expired buckets whenever the map grows past a threshold;
+ * that keeps the common path allocation-free.
+ */
+const RATE_LIMIT_SWEEP_THRESHOLD = 5000;
+
+function sweepExpiredRateLimits(now: number) {
+  if (rateLimitMap.size < RATE_LIMIT_SWEEP_THRESHOLD) return;
+  for (const [key, entry] of rateLimitMap) {
+    if (entry.resetTime <= now) rateLimitMap.delete(key);
+  }
+}
+
 /** Proxy /api/* and /meal-images/* to the API gateway (same-origin for the browser). */
 export async function middleware(req: NextRequest) {
   if (req.nextUrl.pathname.startsWith("/api/auth/")) {
@@ -14,6 +30,8 @@ export async function middleware(req: NextRequest) {
   const now = Date.now();
   const windowMs = 60000;
   const limit = 100;
+
+  sweepExpiredRateLimits(now);
 
   const record = rateLimitMap.get(ip);
   if (record && record.resetTime > now) {

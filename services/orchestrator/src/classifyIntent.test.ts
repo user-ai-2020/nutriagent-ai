@@ -24,3 +24,32 @@ describe("classifyIntent scope guardrail", () => {
     assert.equal(classifyIntent("what should I eat for dinner", false), "general_chat");
   });
 });
+
+describe("classifyIntent range/aggregate words", () => {
+  it("does not send general questions to the history path just for a connective", () => {
+    // Regression: bare substring matches on "between", "from " and "average"
+    // routed these to Text2SQL, which then tried to answer them from the user's
+    // meals table.
+    assert.equal(
+      classifyIntent("what is the difference between keto and paleo", false),
+      "question"
+    );
+    assert.equal(
+      classifyIntent("which vitamins come from carrots", false),
+      "general_chat"
+    );
+    assert.equal(
+      classifyIntent("what is the average calorie need for adults", false),
+      "question"
+    );
+  });
+
+  it("still routes the same words to history when they are about the user's own data", () => {
+    assert.equal(
+      classifyIntent("what did I eat between monday and friday", false),
+      "history_query"
+    );
+    assert.equal(classifyIntent("what is my average calorie intake", false), "history_query");
+    assert.equal(classifyIntent("show my meals from last week", false), "history_query");
+  });
+});

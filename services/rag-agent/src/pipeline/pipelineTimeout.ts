@@ -1,4 +1,4 @@
-import { RAG_PIPELINE_TIMEOUT_MS } from "../config/ragConstants.js";
+import { RAG_FETCH_TIMEOUT_MS, RAG_PIPELINE_TIMEOUT_MS } from "../config/ragConstants.js";
 
 export class PipelineTimeoutError extends Error {
   constructor(ms = RAG_PIPELINE_TIMEOUT_MS) {
@@ -28,7 +28,7 @@ export async function withPipelineTimeout<T>(
 export function fetchWithTimeout(
   url: string,
   init: RequestInit = {},
-  timeoutMs = Number(process.env.RAG_FETCH_TIMEOUT_MS || 15_000)
+  timeoutMs = RAG_FETCH_TIMEOUT_MS
 ): Promise<Response> {
   return fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
 }

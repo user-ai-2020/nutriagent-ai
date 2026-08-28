@@ -462,10 +462,20 @@ async function nutritionCalculateNode(state: typeof OrchestratorState.State) {
     }, CHAT_AGENT_TIMEOUT_MS);
   }
 
+  // Panels are the side-by-side model comparison — informative, but not required
+  // to log the meal. Promise.all used to reject the whole node if any single
+  // panel's nutrition call failed, so one flaky model turned a perfectly good
+  // scan into "Internal server error". Degrade that panel instead, the same way
+  // graphdbMealNode already degrades.
   const panelCalcs = await Promise.all(
     state.visionResult.modelResults.map(async (mr) => ({
       mr,
-      calc: mr.items.length ? await calc(mr.items) : null,
+      calc: mr.items.length
+        ? await calc(mr.items).catch((err) => {
+            console.warn(`Nutrition calc failed for panel ${mr.modelId}:`, err);
+            return null;
+          })
+        : null,
     }))
   );
 
@@ -837,6 +847,15 @@ const workflow = new StateGraph(OrchestratorState)
 // Setup checkpointer
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
+});
+
+// `pg.Pool` emits "error" for problems on IDLE clients (server restart, network
+// blip, idle-timeout kill). Node treats an unhandled "error" event as a thrown
+// exception, so without this listener a transient Postgres hiccup took the whole
+// orchestrator process down — the pool itself recovers fine once the client is
+// discarded.
+pool.on("error", (err) => {
+  console.error("Postgres pool error (idle client discarded, pool continues):", err);
 });
 export const checkpointer = new PostgresSaver(pool);
 

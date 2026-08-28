@@ -21,15 +21,53 @@ import { toUserProfileData } from "../lib/profile";
 export const chatRouter = Router();
 chatRouter.use(authMiddleware);
 
+/**
+ * `file.originalname` is attacker-controlled. multer joins it onto the
+ * destination, so an original name containing `../` escaped os.tmpdir() and let
+ * an upload land anywhere the process can write. Keep only the basename and
+ * strip everything that is not a safe filename character.
+ */
+function safeUploadName(originalName: string): string {
+  const base = path.basename(originalName || "upload");
+  const cleaned = base.replace(/[^A-Za-z0-9._-]/g, "_").replace(/^\.+/, "_");
+  return cleaned.slice(0, 100) || "upload";
+}
+
 const upload = multer({
   storage: multer.diskStorage({
     destination: os.tmpdir(),
-    filename: (_req, file, cb) => cb(null, `nutriagent-${Date.now()}-${file.originalname}`),
+    filename: (_req, file, cb) =>
+      cb(null, `nutriagent-${Date.now()}-${safeUploadName(file.originalname)}`),
   }),
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 const mealTypeSchema = z.enum(["breakfast", "lunch", "dinner", "snack"]);
+
+/**
+ * A chat session id arrives from the client, so it must never be trusted to
+ * scope a write. Without this check any authenticated user could pass another
+ * user's sessionId and have their messages written into that person's session
+ * (and, via /resume, read back the analysis of that person's meal photo).
+ * Every other route in this service already filters on userId; these two did not.
+ * Returns the id when the session belongs to the caller, otherwise null.
+ */
+async function assertOwnedSession(userId: number, sessionId: number): Promise<number | null> {
+  const session = await prisma.chatSession.findFirst({
+    where: { id: sessionId, userId },
+    select: { id: true },
+  });
+  return session ? session.id : null;
+}
+
+/** Graph thread ids are minted as `<sessionId>-<timestamp>-<rand>`; the leading
+ *  segment is what ties a paused run back to a session we can check ownership of. */
+function sessionIdFromThreadId(threadId: unknown): number | null {
+  if (typeof threadId !== "string") return null;
+  const head = threadId.split("-")[0];
+  const parsed = Number(head);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
 
 const messageSchema = z.object({
   message: z.string().min(1),
@@ -285,11 +323,12 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
         displayUrl: uploaded.url,
       };
 
-      // Clean up temp file
-      fs.promises.unlink(req.file.path).catch(() => {});
     }
 
     let finalSessionId = body.sessionId;
+    if (finalSessionId && !(await assertOwnedSession(req.user!.userId, finalSessionId))) {
+      return res.status(404).json({ error: "Chat session not found" });
+    }
     if (!finalSessionId) {
       // Find latest session or create one
       const latest = await prisma.chatSession.findFirst({
@@ -366,6 +405,12 @@ chatRouter.post("/message", upload.single("image"), async (req: AuthRequest, res
   } catch (err) {
     console.error("Caught error in POST /message:", err);
     next(err);
+  } finally {
+    // Always remove the multer temp file. Doing this only on the success path
+    // leaked one file per failed scan into os.tmpdir() until the disk filled.
+    if (req.file?.path) {
+      fs.promises.unlink(req.file.path).catch(() => {});
+    }
   }
 });
 
@@ -374,6 +419,23 @@ chatRouter.post("/resume", async (req: AuthRequest, res, next) => {
     const { answer, sessionId, threadId } = req.body;
     if (!sessionId || !answer) {
       return res.status(400).json({ error: "Missing sessionId or answer" });
+    }
+
+    const numericSessionId = Number(sessionId);
+    if (!Number.isInteger(numericSessionId) || numericSessionId <= 0) {
+      return res.status(400).json({ error: "Invalid sessionId" });
+    }
+    if (!(await assertOwnedSession(req.user!.userId, numericSessionId))) {
+      return res.status(404).json({ error: "Chat session not found" });
+    }
+    // A threadId names a paused graph run. Resuming someone else's run would
+    // return their meal analysis to this caller, so the thread must belong to a
+    // session this user owns.
+    const threadSessionId = sessionIdFromThreadId(threadId);
+    if (threadId !== undefined && threadId !== null) {
+      if (threadSessionId === null || threadSessionId !== numericSessionId) {
+        return res.status(403).json({ error: "Thread does not belong to this session" });
+      }
     }
 
     await prisma.chatHistory.create({
